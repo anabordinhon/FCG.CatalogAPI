@@ -1,0 +1,15 @@
+using FCG.Catalog.Domain.Common.ValueObjects;
+
+namespace FCG.Catalog.API.Common.Outputs;
+
+public class PromotionServiceResult
+{
+    public int? PromotionId { get; set; }
+    public Price DiscountValue { get; set; }
+
+    public PromotionServiceResult(int? promotionId, Price discountValue)
+    {
+        PromotionId = promotionId;
+        DiscountValue = discountValue;
+    }
+}
