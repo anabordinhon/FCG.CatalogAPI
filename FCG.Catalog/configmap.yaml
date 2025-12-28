@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalogapi-config
+  namespace: default
+data:
+  # RabbitMQ (aponta para o Service criado pelo orquestrador)
+  RabbitMQ__Host: "rabbitmq-service"
+  RabbitMQ__Username: "guest"
+  
+  # JWT
+  Jwt__Issuer: "FCGIssuer"
+  Jwt__Audience: "FCGAudience"
+  
+  # Ambiente
+  ASPNETCORE_ENVIRONMENT: "Production"

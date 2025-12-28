@@ -5,5 +5,6 @@ public record GamePurchaseOutput(
     Guid GamePublicId,
     DateTime PurchaseDate,
     decimal FinalPrice,
-    decimal? PromotionValue
+    decimal? PromotionValue,
+    string StatusPurchase
 );

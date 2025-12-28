@@ -13,7 +13,8 @@ public static class GamePurchaseOutputMapper
             game.PublicId,
             gamePurchase.DataGamePurchase,
             gamePurchase.FinalPrice.Value,
-            gamePurchase.PromotionValue?.Value
+            gamePurchase.PromotionValue?.Value,
+            gamePurchase.StatusPurchase.ToString()
         );
     }
 

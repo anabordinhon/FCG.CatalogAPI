@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalogapi-deployment
+  namespace: default
+  labels:
+    app: catalogapi
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: catalogapi
+  template:
+    metadata:
+      labels:
+        app: catalogapi
+    spec:
+      containers:
+      - name: catalogapi
+        image: catalogapi:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+          name: http
+        
+        # Variáveis do ConfigMap
+        env:
+        - name: RabbitMQ__Host
+          valueFrom:
+            configMapKeyRef:
+              name: catalogapi-config
+              key: RabbitMQ__Host
+        
+        - name: RabbitMQ__Username
+          valueFrom:
+            configMapKeyRef:
+              name: catalogapi-config
+              key: RabbitMQ__Username
+        
+        - name: Jwt__Issuer
+          valueFrom:
+            configMapKeyRef:
+              name: catalogapi-config
+              key: Jwt__Issuer
+        
+        - name: Jwt__Audience
+          valueFrom:
+            configMapKeyRef:
+              name: catalogapi-config
+              key: Jwt__Audience
+        
+        - name: ASPNETCORE_ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: catalogapi-config
+              key: ASPNETCORE_ENVIRONMENT
+        
+        # Variáveis do Secret
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: catalogapi-secret
+              key: ConnectionStrings__DefaultConnection
+        
+        - name: RabbitMQ__Password
+          valueFrom:
+            secretKeyRef:
+              name: catalogapi-secret
+              key: RabbitMQ__Password
+        
+        - name: Jwt__Key
+          valueFrom:
+            secretKeyRef:
+              name: catalogapi-secret
+              key: Jwt__Key
+        
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

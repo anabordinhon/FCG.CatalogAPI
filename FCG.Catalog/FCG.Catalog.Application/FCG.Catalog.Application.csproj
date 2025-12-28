@@ -10,4 +10,8 @@
 		<ProjectReference Include="..\FCG.Catalog.Domain\FCG.Catalog.Domain.csproj" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <PackageReference Include="MassTransit" Version="8.5.7" />
+	</ItemGroup>
+
 </Project>

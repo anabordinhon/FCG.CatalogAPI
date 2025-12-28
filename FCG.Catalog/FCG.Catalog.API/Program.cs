@@ -17,6 +17,7 @@ using FCG.Catalog.Infraestructure.Adapters.Promotions.Repositories;
 using FCG.Catalog.Infraestructure.Adapters.Promotions.Services;
 using FCG.Catalog.Infraestructure.Persistence;
 using FCG.Catalog.Infraestructure.Persistence.Interceptors;
+using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -94,6 +95,18 @@ var jwtSecretKey = builder.Configuration["Jwt:SecretKey"]
     ?? throw new InvalidOperationException("JWT SecretKey não configurada (verifique appsettings / User Secrets)");
 
 var key = Encoding.ASCII.GetBytes(jwtSecretKey);
+
+builder.Services.AddMassTransit(x =>
+{
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h =>
+        {
+            h.Username(builder.Configuration["RabbitMQ:Username"]);
+            h.Password(builder.Configuration["RabbitMQ:Password"]);
+        });
+    });
+});
 
 builder.Services.AddAuthentication(x =>
 {

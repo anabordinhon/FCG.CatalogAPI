@@ -31,7 +31,7 @@ public class GamePurchaseController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await handle.Handle(input, cancellationToken);
-        return result.ToCreatedActionResult($"/api/gamepurchases");
+        return result.ToAcceptedActionResult($"/api/gamepurchases");
     }
 
 }

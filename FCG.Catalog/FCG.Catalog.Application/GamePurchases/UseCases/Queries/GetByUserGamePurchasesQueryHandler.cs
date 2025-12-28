@@ -20,7 +20,7 @@ public class GetByUserGamePurchasesQueryHandler : IGetByUserGamePurchasesQueryHa
     {
         var userId = _userContext.GetCurrentUserId();
 
-        var pagedResult = await _gamePurchaseQueryRepository.GetByUserGamePurchasesAsync(query.Page, query.PageSize, userId, cancellationToken);
+        var pagedResult = await _gamePurchaseQueryRepository.GetByUserGamePurchasesPagedAsync(query.Page, query.PageSize, userId, cancellationToken);
 
         var items = pagedResult.Items.ToOutput();
 
