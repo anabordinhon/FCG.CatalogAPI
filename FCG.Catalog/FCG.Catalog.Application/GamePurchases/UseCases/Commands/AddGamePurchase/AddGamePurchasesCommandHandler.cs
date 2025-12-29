@@ -7,7 +7,6 @@ using FCG.Catalog.Domain.Common.Ports;
 using FCG.Catalog.Domain.Common.ValueObjects;
 using FCG.Catalog.Domain.GamePurchases.Entities;
 using FCG.Catalog.Domain.GamePurchases.Enum;
-using FCG.Catalog.Domain.Games.Entities;
 using FCG.Catalog.Domain.Games.Ports;
 using FCG.Catalog.Domain.Promotions.Ports;
 using MassTransit;

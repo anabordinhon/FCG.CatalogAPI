@@ -35,4 +35,9 @@ public class GamePurchase : BaseEntity
         return gamePurcharse;
     }
 
+    public void UpdateStatus(EStatusPurchase newStatus)
+    {
+        StatusPurchase = newStatus;
+    }
+
 }

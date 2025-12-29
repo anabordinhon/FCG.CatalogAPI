@@ -6,5 +6,6 @@ namespace FCG.Catalog.Application.GamePurchases.Ports;
 public interface IGamePurchaseQueryRepository
 {
     Task<PagedResult<GamePurchase>> GetByUserGamePurchasesPagedAsync(int page, int pageSize, int userId, CancellationToken cancellationToken);
+    Task<GamePurchase?> GetByUserGamePurchasesAsync(int userId, Guid gameId, CancellationToken cancellationToken);
     Task<bool> AnyByUserGamePurchasesAsync(int userId, Guid gameId, CancellationToken cancellationToken);
 }

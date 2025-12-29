@@ -35,4 +35,11 @@ public class GamePurchaseQueryRepository : IGamePurchaseQueryRepository
             .AsNoTracking()
             .AnyAsync(gp => gp.PublicId == gameId && gp.UserId == userId, cancellationToken);
     }
+
+    public async Task<GamePurchase?> GetByUserGamePurchasesAsync(int userId, Guid gameId, CancellationToken cancellationToken)
+    {
+        return await _dbContext.GamePurchases
+            .AsNoTracking()
+            .FirstOrDefaultAsync(gp => gp.PublicId == gameId && gp.UserId == userId, cancellationToken);
+    }
 }

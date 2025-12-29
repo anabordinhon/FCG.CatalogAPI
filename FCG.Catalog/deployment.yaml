@@ -1,4 +1,4 @@
-apiVersion: apps/v1
+ï»¿apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: catalogapi-deployment
@@ -6,7 +6,7 @@ metadata:
   labels:
     app: catalogapi
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: catalogapi
@@ -15,6 +15,29 @@ spec:
       labels:
         app: catalogapi
     spec:
+      initContainers:
+      - name: migration
+        image: catalogapi:latest
+        imagePullPolicy: Never
+        command: 
+          - dotnet
+          - ef
+          - database
+          - update
+          - --no-build
+        env:
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: catalogapi-secret
+              key: ConnectionStrings__DefaultConnection
+       
+        - name: ASPNETCORE_ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: catalogapi-config
+              key: ASPNETCORE_ENVIRONMENT
+      
       containers:
       - name: catalogapi
         image: catalogapi:latest
@@ -23,7 +46,6 @@ spec:
         - containerPort: 8080
           name: http
         
-        # Variáveis do ConfigMap
         env:
         - name: RabbitMQ__Host
           valueFrom:
@@ -37,25 +59,18 @@ spec:
               name: catalogapi-config
               key: RabbitMQ__Username
         
-        - name: Jwt__Issuer
-          valueFrom:
-            configMapKeyRef:
-              name: catalogapi-config
-              key: Jwt__Issuer
-        
-        - name: Jwt__Audience
-          valueFrom:
-            configMapKeyRef:
-              name: catalogapi-config
-              key: Jwt__Audience
-        
         - name: ASPNETCORE_ENVIRONMENT
           valueFrom:
             configMapKeyRef:
               name: catalogapi-config
               key: ASPNETCORE_ENVIRONMENT
         
-        # Variáveis do Secret
+        - name: ASPNETCORE_URLS
+          valueFrom:
+            configMapKeyRef:
+              name: catalogapi-config
+              key: ASPNETCORE_URLS
+        
         - name: ConnectionStrings__DefaultConnection
           valueFrom:
             secretKeyRef:
@@ -68,11 +83,11 @@ spec:
               name: catalogapi-secret
               key: RabbitMQ__Password
         
-        - name: Jwt__Key
+        - name: Jwt__SecretKey
           valueFrom:
             secretKeyRef:
               name: catalogapi-secret
-              key: Jwt__Key
+              key: Jwt__SecretKey
         
         resources:
           requests:
@@ -81,3 +96,6 @@ spec:
           limits:
             memory: "512Mi"
             cpu: "500m"
+        
+        livenessProbe:
+          httpGet
