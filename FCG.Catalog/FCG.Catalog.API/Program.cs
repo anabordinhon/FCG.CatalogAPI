@@ -17,8 +17,7 @@ using FCG.Catalog.Infraestructure.Adapters.Promotions.Repositories;
 using FCG.Catalog.Infraestructure.Adapters.Promotions.Services;
 using FCG.Catalog.Infraestructure.Persistence;
 using FCG.Catalog.Infraestructure.Persistence.Interceptors;
-using FCG.Catalog.Application.Consumers;
-using MassTransit;
+using FCG.Catalog.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -57,6 +56,8 @@ builder.Services.AddScoped<IGamePurchaseCommandRepository, GamePurchasesCommandR
 builder.Services.AddScoped<IGamePurchaseQueryRepository, GamePurchaseQueryRepository>();
 builder.Services.AddScoped<IGetByUserGamePurchasesQueryHandler, GetByUserGamePurchasesQueryHandler>();
 
+builder.Services.AddMessaging(builder.Configuration);
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -79,16 +80,16 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            new string[] {}
-        }
+  new OpenApiSecurityScheme
+     {
+    Reference = new OpenApiReference
+  {
+      Type = ReferenceType.SecurityScheme,
+        Id = "Bearer"
+      }
+  },
+   new string[] {}
+      }
     });
 });
 
@@ -97,25 +98,6 @@ var jwtSecretKey = builder.Configuration["Jwt:SecretKey"]
 
 var key = Encoding.ASCII.GetBytes(jwtSecretKey);
 
-builder.Services.AddMassTransit(x =>
-{
-    x.AddConsumer<PaymentProcessedConsumer>();
-
-    x.UsingRabbitMq((context, cfg) =>
-    {
-        cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h =>
-        {
-            h.Username(builder.Configuration["RabbitMQ:Username"]);
-            h.Password(builder.Configuration["RabbitMQ:Password"]);
-        });
-
-        cfg.ReceiveEndpoint("payment-processed-catalog-queue", e =>
-        {
-            e.ConfigureConsumer<PaymentProcessedConsumer>(context);
-        });
-    });
-});
-
 builder.Services.AddAuthentication(x =>
 {
     x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -123,7 +105,7 @@ builder.Services.AddAuthentication(x =>
 })
 .AddJwtBearer(x =>
 {
-    x.RequireHttpsMetadata = false; // Em produção true
+    x.RequireHttpsMetadata = false;
     x.SaveToken = true;
     x.TokenValidationParameters = new TokenValidationParameters
     {

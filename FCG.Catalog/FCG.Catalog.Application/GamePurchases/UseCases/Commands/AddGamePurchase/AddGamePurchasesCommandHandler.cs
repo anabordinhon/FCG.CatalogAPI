@@ -1,4 +1,5 @@
 using FCG.Catalog.Application.Common;
+using FCG.Catalog.Application.Common.Ports;
 using FCG.Catalog.Application.Events;
 using FCG.Catalog.Application.GamePurchases.Mappers;
 using FCG.Catalog.Application.GamePurchases.Outputs;
@@ -9,7 +10,6 @@ using FCG.Catalog.Domain.GamePurchases.Entities;
 using FCG.Catalog.Domain.GamePurchases.Enum;
 using FCG.Catalog.Domain.Games.Ports;
 using FCG.Catalog.Domain.Promotions.Ports;
-using MassTransit;
 using Microsoft.Extensions.Logging;
 
 namespace FCG.Catalog.Application.GamePurchases.UseCases.Commands.AddGamePurchase;
@@ -22,7 +22,7 @@ public class AddGamePurchasesCommandHandler : IAddGamePurchasesCommandHandler
     private readonly IUserContext _userContext;
     private readonly IGamePurchaseQueryRepository _gamePurchaseQueryRepository;
     private readonly ILogger<AddGamePurchasesCommandHandler> _logger;
-    private readonly IPublishEndpoint _publishEndpoint;
+    private readonly IEventPublisher _eventPublisher;
 
     public AddGamePurchasesCommandHandler(
         IGamePurchaseCommandRepository gamePurchaseCommandRepository,
@@ -31,7 +31,7 @@ public class AddGamePurchasesCommandHandler : IAddGamePurchasesCommandHandler
         IPromotionService promotionService,
         IUserContext userContext,
         ILogger<AddGamePurchasesCommandHandler> logger,
-        IPublishEndpoint publishEndpoint)
+        IEventPublisher eventPublisher)
     {
         _gamePurchaseCommandRepository = gamePurchaseCommandRepository;
         _gamePurchaseQueryRepository = gamePurchaseQueryRepository;
@@ -39,8 +39,9 @@ public class AddGamePurchasesCommandHandler : IAddGamePurchasesCommandHandler
         _promotionService = promotionService;
         _userContext = userContext;
         _logger = logger;
-        _publishEndpoint = publishEndpoint;
+        _eventPublisher = eventPublisher;
     }
+
     public async Task<ResultData<GamePurchaseOutput>> Handle(AddGamePurchasesComand command, CancellationToken cancellationToken)
     {
         var userId = _userContext.GetCurrentUserId();
@@ -79,10 +80,10 @@ public class AddGamePurchasesCommandHandler : IAddGamePurchasesCommandHandler
             CreatedAt = DateTime.UtcNow
         };
 
-        await _publishEndpoint.Publish(orderPlacedEvent);
+        await _eventPublisher.PublishAsync(orderPlacedEvent, cancellationToken);
 
         _logger.LogInformation(
-            "✅ OrderPlacedEvent publicado - OrderId: {OrderId}, UserId: {UserId}, GameId: {GameId}, Price: {Price}, Status: {Status}",
+        "OrderPlacedEvent publicado - OrderId: {OrderId}, UserId: {UserId}, GameId: {GameId}, Price: {Price}, Status: {Status}",
             orderPlacedEvent.OrderId, gamePurchase.UserId, gamePurchase.GameId, gamePurchase.FinalPrice, gamePurchase.StatusPurchase);
 
         return ResultData<GamePurchaseOutput>.Success(gamePurchaseOutput);
