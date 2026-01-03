@@ -37,6 +37,9 @@ builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
 
 builder.Services.AddHttpContextAccessor();
 
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("API está funcionando"));
+
 builder.Services.AddScoped<IUserContext, UserContext>();
 builder.Services.AddScoped<IAddOrUpdatePromotionCommandHandler, AddOrUpdatePromotionCommandHandler>();
 builder.Services.AddScoped<IPromotionCommandRepository, PromotionCommandRepository>();
@@ -128,6 +131,8 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapHealthChecks("/health");
 
 app.MapControllers();
 

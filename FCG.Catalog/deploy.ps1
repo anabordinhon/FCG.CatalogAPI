@@ -1,9 +1,7 @@
 $root = $PSScriptRoot
 
-# API: força o stage runtime
 docker build -t catalogapi:latest --target runtime $root
 
-# Migrations: força o stage migrations
 docker build -t catalogapi-migrations:latest --target migrations $root
 
 kubectl apply -f (Join-Path $root "infrastructure-sqlserver.yaml")
@@ -25,3 +23,5 @@ kubectl wait --for=condition=ready pod -l app=catalogapi --timeout=600s
 
 kubectl get pods
 kubectl get services
+
+kubectl port-forward service/catalogapi-service 8080:80
