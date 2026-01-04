@@ -1,8 +1,8 @@
 $root = $PSScriptRoot
 
-docker build -t catalogapi:latest --target runtime $root
+docker build -t catalogapi:latest --target runtime -f (Join-Path $root "FCG.Catalog.API/Dockerfile") $root
 
-docker build -t catalogapi-migrations:latest --target migrations $root
+docker build -t catalogapi-migrations:latest --target migrations -f (Join-Path $root "FCG.Catalog.API/Dockerfile") $root
 
 kubectl apply -f (Join-Path $root "infrastructure-sqlserver.yaml")
 kubectl wait --for=condition=ready pod -l app=sqlserver --timeout=600s

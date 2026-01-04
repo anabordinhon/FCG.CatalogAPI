@@ -1,4 +1,3 @@
-# ---------- build ----------
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
@@ -13,17 +12,15 @@ COPY . .
 WORKDIR /src/FCG.Catalog.API
 RUN dotnet publish "FCG.Catalog.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# ---------- runtime (API) ----------
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 EXPOSE 8080
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "FCG.Catalog.API.dll"]
 
-# ---------- migrations (EF) ----------
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS migrations
 WORKDIR /src
 COPY . .
-RUN dotnet tool install --global dotnet-ef --version 8.0.0
+RUN dotnet tool install --global dotnet-ef --version 8.0.8
 ENV PATH="${PATH}:/root/.dotnet/tools"
 ENTRYPOINT ["dotnet", "ef"]

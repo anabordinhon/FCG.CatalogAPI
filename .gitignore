@@ -74,6 +74,16 @@ Desktop.ini
 *.old
 *.orig
 
+############################
+# Docker / Ambiente Local
+############################
+# Arquivo .env com segredos locais (manter .env.template versionado)
+.env
+
+############################
 # k8s Secrets
+############################
+# Ignorar secrets reais (manter secret.template.yaml versionado)
+**/secret.yaml
 k8s/secret.yaml
 k8s/*-secret.yaml

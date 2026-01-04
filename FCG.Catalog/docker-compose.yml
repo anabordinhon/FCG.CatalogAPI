@@ -1,0 +1,71 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: fcg-catalog-sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${SA_PASSWORD}
+      - MSSQL_PID=${MSSQL_PID}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - fcg-catalog-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: fcg-catalog-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - fcg-catalog-network
+
+  catalogapi-migrations:
+    image: catalogapi-migrations:latest
+    container_name: fcg-catalog-migrations
+    environment:
+      - ConnectionStrings__DefaultConnection=${CONNECTION_STRING}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+    working_dir: /src
+    command: >
+      sh -c "
+        echo 'Starting database migration...' &&
+        dotnet ef --startup-project FCG.Catalog.API --project FCG.Catalog.Infrastructure database update --configuration Release &&
+        echo 'Database migration completed successfully!'
+      "
+    networks:
+      - fcg-catalog-network
+
+  catalogapi:
+    image: catalogapi:latest
+    container_name: fcg-catalog-api
+    environment:
+      - ConnectionStrings__DefaultConnection=${CONNECTION_STRING}
+      - RabbitMQ__Host=${RABBITMQ_HOST}
+      - RabbitMQ__Username=${RABBITMQ_DEFAULT_USER}
+      - RabbitMQ__Password=${RABBITMQ_DEFAULT_PASS}
+      - Jwt__SecretKey=${JWT_SECRET_KEY}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_URLS=${ASPNETCORE_URLS}
+    ports:
+      - "8080:8080"
+    networks:
+      - fcg-catalog-network
+    restart: unless-stopped
+
+volumes:
+  sqlserver_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+
+networks:
+  fcg-catalog-network:
+    driver: bridge
