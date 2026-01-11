@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalogapi-service
+  namespace: default
+  labels:
+    app: catalogapi
+spec:
+  type: ClusterIP
+  selector:
+    app: catalogapi
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 8080

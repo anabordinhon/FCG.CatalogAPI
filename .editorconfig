@@ -97,14 +97,14 @@ csharp_style_var_for_built_in_types = false
 csharp_style_var_when_type_is_apparent = false
 
 # Membros aptos para expressão
-csharp_style_expression_bodied_accessors = true
-csharp_style_expression_bodied_constructors = false
-csharp_style_expression_bodied_indexers = true
-csharp_style_expression_bodied_lambdas = true
-csharp_style_expression_bodied_local_functions = false
-csharp_style_expression_bodied_methods = false
-csharp_style_expression_bodied_operators = false
-csharp_style_expression_bodied_properties = true
+csharp_style_expression_bodied_accessors = true:silent
+csharp_style_expression_bodied_constructors = false:silent
+csharp_style_expression_bodied_indexers = true:silent
+csharp_style_expression_bodied_lambdas = true:silent
+csharp_style_expression_bodied_local_functions = false:silent
+csharp_style_expression_bodied_methods = false:silent
+csharp_style_expression_bodied_operators = false:silent
+csharp_style_expression_bodied_properties = true:silent
 
 # Preferências de correspondência de padrões
 csharp_style_pattern_matching_over_as_with_null_check = true
@@ -248,3 +248,9 @@ dotnet_naming_style.begins_with_i.required_prefix = I
 dotnet_naming_style.begins_with_i.required_suffix = 
 dotnet_naming_style.begins_with_i.word_separator = 
 dotnet_naming_style.begins_with_i.capitalization = pascal_case
+
+[*.{cs,vb}]
+dotnet_style_qualification_for_field = false:silent
+dotnet_style_qualification_for_property = false:silent
+dotnet_style_qualification_for_method = false:silent
+dotnet_style_qualification_for_event = false:silent

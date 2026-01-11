@@ -2,15 +2,13 @@ using FCG.Catalog.API.Common.Outputs;
 using FCG.Catalog.Application.Games.UseCases.Commands.AddGame;
 using FCG.Catalog.Application.Games.UseCases.Queries.GetGameById;
 using FCG.Catalog.Application.Games.UseCases.Queries.GetGamesPaged;
-using FCG.Domain.Common.Enuns;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FCG.Catalog.API.Controllers.Games;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+//[Authorize]
 public class GamesController : ControllerBase
 {
 
@@ -38,7 +36,7 @@ public class GamesController : ControllerBase
         return result.ToOkActionResult();
     }
 
-    [Authorize(Roles = nameof(EUserRole.Admin))]
+    //[Authorize(Roles = nameof(EUserRoleContract.Admin))]
     [HttpPost]
     public async Task<IActionResult> AddOrUpdatGame(
         [FromBody] AddOrUpdateGameInput input,

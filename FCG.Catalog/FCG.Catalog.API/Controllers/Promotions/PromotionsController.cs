@@ -1,8 +1,8 @@
 using FCG.Catalog.API.Common.Outputs;
+using FCG.Catalog.Application.Common.Contracts;
 using FCG.Catalog.Application.Promotions.UseCases.Commands.AddPromotion;
 using FCG.Catalog.Application.Promotions.UseCases.Queries.GetPromotionById;
 using FCG.Catalog.Application.Promotions.UseCases.Queries.GetPromotionsPaged;
-using FCG.Domain.Common.Enuns;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -36,7 +36,7 @@ public class PromotionsController : ControllerBase
         return result.ToOkActionResult();
     }
 
-    [Authorize(Roles = nameof(EUserRole.Admin))]
+    [Authorize(Roles = nameof(EUserRoleContract.Admin))]
     [HttpPost]
     public async Task<IActionResult> AddOrUpdatePromotion(
         [FromBody] AddOrUpdatePromotionInput input,

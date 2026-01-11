@@ -17,6 +17,7 @@ using FCG.Catalog.Infraestructure.Adapters.Promotions.Repositories;
 using FCG.Catalog.Infraestructure.Adapters.Promotions.Services;
 using FCG.Catalog.Infraestructure.Persistence;
 using FCG.Catalog.Infraestructure.Persistence.Interceptors;
+using FCG.Catalog.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -36,6 +37,9 @@ builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
 
 builder.Services.AddHttpContextAccessor();
 
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("API está funcionando"));
+
 builder.Services.AddScoped<IUserContext, UserContext>();
 builder.Services.AddScoped<IAddOrUpdatePromotionCommandHandler, AddOrUpdatePromotionCommandHandler>();
 builder.Services.AddScoped<IPromotionCommandRepository, PromotionCommandRepository>();
@@ -54,6 +58,8 @@ builder.Services.AddScoped<IAddGamePurchasesCommandHandler, AddGamePurchasesComm
 builder.Services.AddScoped<IGamePurchaseCommandRepository, GamePurchasesCommandRepository>();
 builder.Services.AddScoped<IGamePurchaseQueryRepository, GamePurchaseQueryRepository>();
 builder.Services.AddScoped<IGetByUserGamePurchasesQueryHandler, GetByUserGamePurchasesQueryHandler>();
+
+builder.Services.AddMessaging(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -77,16 +83,16 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            new string[] {}
-        }
+  new OpenApiSecurityScheme
+     {
+    Reference = new OpenApiReference
+  {
+      Type = ReferenceType.SecurityScheme,
+        Id = "Bearer"
+      }
+  },
+   new string[] {}
+      }
     });
 });
 
@@ -102,7 +108,7 @@ builder.Services.AddAuthentication(x =>
 })
 .AddJwtBearer(x =>
 {
-    x.RequireHttpsMetadata = false; // Em produção true
+    x.RequireHttpsMetadata = false;
     x.SaveToken = true;
     x.TokenValidationParameters = new TokenValidationParameters
     {
@@ -115,16 +121,18 @@ builder.Services.AddAuthentication(x =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+//if (app.Environment.IsDevelopment())
+//{
+app.UseSwagger();
+app.UseSwaggerUI();
+//}
 
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapHealthChecks("/health");
 
 app.MapControllers();
 

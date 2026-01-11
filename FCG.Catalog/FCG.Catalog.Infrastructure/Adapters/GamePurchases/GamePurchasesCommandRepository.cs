@@ -19,4 +19,10 @@ public class GamePurchasesCommandRepository : IGamePurchaseCommandRepository
         return gamePurchase;
     }
 
+    public async Task<GamePurchase> UpdateAsync(GamePurchase gamePurchase, CancellationToken cancellationToken)
+    {
+        _dbContext.GamePurchases.Update(gamePurchase);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return gamePurchase;
+    }
 }

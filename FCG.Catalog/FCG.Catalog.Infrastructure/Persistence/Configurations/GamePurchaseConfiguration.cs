@@ -59,6 +59,11 @@ public class GamePurchaseConfigurations : IEntityTypeConfiguration<GamePurchase>
                 .HasPrecision(18, 2);
         });
 
+        builder.Property(gp => gp.StatusPurchase)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(50);
+
         builder.HasOne<Game>(gp => gp.Game)
             .WithMany()
             .HasForeignKey(gp => gp.GameId)

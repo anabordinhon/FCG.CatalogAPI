@@ -49,6 +49,11 @@ namespace FCG.Catalog.Infrastructure.Migrations
                     b.Property<Guid>("PublicId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("StatusPurchase")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 

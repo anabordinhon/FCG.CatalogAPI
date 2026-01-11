@@ -13,6 +13,18 @@ public static class ResultExtensions
         return new CreatedResult(path, result);
     }
 
+    public static IActionResult ToAcceptedActionResult<T>(this ResultData<T> result, string path = "")
+    {
+        if (!result.IsSuccess)
+            return new BadRequestObjectResult(result);
+
+        if (!string.IsNullOrEmpty(path))
+        {
+            return new AcceptedResult(path, result);
+        }
+
+        return new AcceptedResult(path, result);
+    }
     public static IActionResult ToOkActionResult<T>(this ResultData<T> result)
     {
         if (!result.IsSuccess)

@@ -1,7 +1,7 @@
 ############################
-# Build / Compilação
+# Build / Compilaï¿½ï¿½o
 ############################
-# Ignora binários e artefatos de compilação em qualquer pasta
+# Ignora binï¿½rios e artefatos de compilaï¿½ï¿½o em qualquer pasta
 **/bin/
 **/obj/
 **/out/
@@ -20,7 +20,7 @@
 *.code-workspace
 
 ############################
-# Usuário / Ambiente local
+# Usuï¿½rio / Ambiente local
 ############################
 *.user
 *.suo
@@ -65,7 +65,7 @@ Desktop.ini
 ############################
 # Outros opcionais
 ############################
-# Arquivos temporários
+# Arquivos temporï¿½rios
 *.tmp
 *.temp
 
@@ -73,3 +73,17 @@ Desktop.ini
 *.bak
 *.old
 *.orig
+
+############################
+# Docker / Ambiente Local
+############################
+# Arquivo .env com segredos locais (manter .env.template versionado)
+.env
+
+############################
+# k8s Secrets
+############################
+# Ignorar secrets reais (manter secret.template.yaml versionado)
+**/secret.yaml
+k8s/secret.yaml
+k8s/*-secret.yaml
