@@ -1,6 +1,8 @@
 using FCG.Catalog.Application.Common.Ports;
+using FCG.Catalog.Application.Events;
 using FCG.Catalog.Infrastructure.Adapters.Events;
 using FCG.Catalog.Infrastructure.Adapters.Events.Consumers;
+using FCG.Payments.Domain.Events;
 using MassTransit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,10 +27,21 @@ public static class MessagingExtensions
                     h.Password(configuration["RabbitMQ:Password"] ?? "guest");
                 });
 
+                cfg.Message<PaymentProcessedEvent>(m =>
+                {
+                    m.SetEntityName("payment-processed");
+                });
+
+                cfg.Message<OrderPlacedEvent>(m =>
+                {
+                    m.SetEntityName("order-placed");
+                });
+
                 cfg.ReceiveEndpoint("payment-processed-catalog-queue", e =>
                 {
                     e.ConfigureConsumer<PaymentProcessedConsumer>(context);
                 });
+
             });
         });
 

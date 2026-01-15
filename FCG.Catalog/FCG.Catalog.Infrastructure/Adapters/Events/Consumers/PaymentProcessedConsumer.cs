@@ -1,7 +1,7 @@
-using FCG.Catalog.Application.Events;
 using FCG.Catalog.Application.GamePurchases.Ports;
 using FCG.Catalog.Domain.Common.Ports;
 using FCG.Catalog.Domain.GamePurchases.Enum;
+using FCG.Payments.Domain.Events;
 using MassTransit;
 using Microsoft.Extensions.Logging;
 
@@ -34,23 +34,23 @@ public class PaymentProcessedConsumer : IConsumer<PaymentProcessedEvent>
          "PaymentProcessedEvent recebido - OrderId: {OrderId}, Status: {Status}",
          payment.OrderId, payment.Status);
 
-    var userId = _userContext.GetCurrentUserId();
+        var userId = _userContext.GetCurrentUserId();
         var gamePurchase = await _gamePurchaseQueryRepository.GetByUserGamePurchasesAsync(userId, context.Message.GameId, context.CancellationToken);
 
         if (gamePurchase == null)
-    {
-          _logger.LogError(
-       "GamePurchase não encontrada para OrderId: {OrderId}",
-             payment.OrderId);
+        {
+            _logger.LogError(
+         "GamePurchase não encontrada para OrderId: {OrderId}",
+               payment.OrderId);
             return;
         }
 
         if (gamePurchase.StatusPurchase != EStatusPurchase.InProgress)
-    {
-     _logger.LogWarning(
-                "GamePurchase {OrderId} já processada. Status atual: {Status}",
-      payment.OrderId, gamePurchase.StatusPurchase);
-      return;
+        {
+            _logger.LogWarning(
+                       "GamePurchase {OrderId} já processada. Status atual: {Status}",
+             payment.OrderId, gamePurchase.StatusPurchase);
+            return;
         }
 
         Enum.TryParse<EStatusPurchase>(payment.Status, out var statusEnum);
@@ -59,17 +59,17 @@ public class PaymentProcessedConsumer : IConsumer<PaymentProcessedEvent>
         await _gamePurchaseCommandRepository
      .UpdateAsync(gamePurchase, context.CancellationToken);
 
-      if (statusEnum == EStatusPurchase.Approved)
-    {
-      _logger.LogInformation(
-    "Compra aprovada - OrderId: {OrderId}, UserId: {UserId}, GameId: {GameId}",
-                payment.OrderId, payment.UserId, payment.GameId);
-    }
+        if (statusEnum == EStatusPurchase.Approved)
+        {
+            _logger.LogInformation(
+          "Compra aprovada - OrderId: {OrderId}, UserId: {UserId}, GameId: {GameId}",
+                      payment.OrderId, payment.UserId, payment.GameId);
+        }
         else if (statusEnum == EStatusPurchase.Rejected)
         {
-     _logger.LogInformation(
-      "Compra rejeitada - OrderId: {OrderId}, UserId: {UserId}, GameId: {GameId}",
-   payment.OrderId, payment.UserId, payment.GameId);
-}
+            _logger.LogInformation(
+             "Compra rejeitada - OrderId: {OrderId}, UserId: {UserId}, GameId: {GameId}",
+          payment.OrderId, payment.UserId, payment.GameId);
+        }
     }
 }

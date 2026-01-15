@@ -99,6 +99,11 @@ builder.Services.AddSwaggerGen(c =>
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"]
     ?? throw new InvalidOperationException("JWT SecretKey não configurada (verifique appsettings / User Secrets)");
 
+Console.WriteLine($"=== JWT CONFIG CATALOG ===");
+Console.WriteLine($"JWT Key Length: {jwtSecretKey.Length}");
+Console.WriteLine($"JWT Key (primeiros 10 chars): {jwtSecretKey.Substring(0, Math.Min(10, jwtSecretKey.Length))}...");
+Console.WriteLine($"=========================");
+
 var key = Encoding.ASCII.GetBytes(jwtSecretKey);
 
 builder.Services.AddAuthentication(x =>
@@ -121,11 +126,8 @@ builder.Services.AddAuthentication(x =>
 
 var app = builder.Build();
 
-//if (app.Environment.IsDevelopment())
-//{
 app.UseSwagger();
 app.UseSwaggerUI();
-//}
 
 app.UseHttpsRedirection();
 
