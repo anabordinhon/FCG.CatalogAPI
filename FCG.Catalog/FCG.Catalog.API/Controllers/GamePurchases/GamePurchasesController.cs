@@ -1,13 +1,14 @@
 using FCG.Catalog.API.Common.Outputs;
 using FCG.Catalog.Application.GamePurchases.UseCases.Commands.AddGamePurchase;
 using FCG.Catalog.Application.GamePurchases.UseCases.Queries;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FCG.Catalog.API.Controllers.GamePurchases;
 
 [ApiController]
 [Route("api/[controller]")]
-//[Authorize]
+[Authorize]
 public class GamePurchaseController : ControllerBase
 {
     [HttpGet]

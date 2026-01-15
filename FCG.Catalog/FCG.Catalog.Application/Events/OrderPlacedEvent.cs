@@ -1,6 +1,6 @@
 namespace FCG.Catalog.Application.Events;
 
-internal class OrderPlacedEvent
+public class OrderPlacedEvent
 {
     public Guid OrderId { get; init; }
     public int UserId { get; init; }

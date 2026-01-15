@@ -1,8 +1,7 @@
 ﻿apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: catalogapi-deployment
-  namespace: default
+  name: catalogapi
   labels:
     app: catalogapi
 spec:
@@ -16,108 +15,31 @@ spec:
         app: catalogapi
     spec:
       initContainers:
-        - name: migration
+        - name: catalog-migrations
           image: catalogapi-migrations:latest
-          imagePullPolicy: Never
-          workingDir: /src
-          command:
-            - dotnet
-            - ef
-            - --configuration
-            - Release
-            - --project
-            - FCG.Catalog.Infrastructure
-            - --startup-project
-            - FCG.Catalog.API
-            - database
-            - update
-          env:
-            - name: ConnectionStrings__DefaultConnection
-              valueFrom:
-                secretKeyRef:
-                  name: catalogapi-secret
-                  key: ConnectionStrings__DefaultConnection
-
-            - name: ASPNETCORE_ENVIRONMENT
-              valueFrom:
-                configMapKeyRef:
-                  name: catalogapi-config
-                  key: ASPNETCORE_ENVIRONMENT
-
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: catalogapi-secret
       containers:
         - name: catalogapi
           image: catalogapi:latest
-          imagePullPolicy: Never
-
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
-              name: http
-
+          envFrom:
+            - configMapRef:
+                name: catalogapi-config
+            - secretRef:
+                name: catalogapi-secret
           env:
-            - name: RabbitMQ__Host
-              valueFrom:
-                configMapKeyRef:
-                  name: catalogapi-config
-                  key: RabbitMQ__Host
-
             - name: RabbitMQ__Username
               valueFrom:
-                configMapKeyRef:
-                  name: catalogapi-config
-                  key: RabbitMQ__Username
-
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: username
             - name: RabbitMQ__Password
               valueFrom:
                 secretKeyRef:
-                  name: catalogapi-secret
-                  key: RabbitMQ__Password
-
-            - name: ConnectionStrings__DefaultConnection
-              valueFrom:
-                secretKeyRef:
-                  name: catalogapi-secret
-                  key: ConnectionStrings__DefaultConnection
-
-            - name: Jwt__SecretKey
-              valueFrom:
-                secretKeyRef:
-                  name: catalogapi-secret
-                  key: Jwt__SecretKey
-
-            - name: ASPNETCORE_ENVIRONMENT
-              valueFrom:
-                configMapKeyRef:
-                  name: catalogapi-config
-                  key: ASPNETCORE_ENVIRONMENT
-
-            - name: ASPNETCORE_URLS
-              valueFrom:
-                configMapKeyRef:
-                  name: catalogapi-config
-                  key: ASPNETCORE_URLS
-
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "250m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
-
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 2
-            failureThreshold: 6
-
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 5
-            timeoutSeconds: 2
-            failureThreshold: 6
+                  name: rabbitmq-secret
+                  key: password
