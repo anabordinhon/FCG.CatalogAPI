@@ -22,11 +22,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FCG.Catalog.Tests", "FCG.Ca
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "k8s", "k8s", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 	ProjectSection(SolutionItems) = preProject
-		configmap.yaml = configmap.yaml
-		deployment.yaml = deployment.yaml
-		secret-template.yaml = secret-template.yaml
-		secret.yaml = secret.yaml
-		service.yaml = service.yaml
+		k8s\configmap.yaml = k8s\configmap.yaml
+		k8s\deployment.yaml = k8s\deployment.yaml
+		k8s\secret-template.yaml = k8s\secret-template.yaml
+		k8s\secret.yaml = k8s\secret.yaml
+		k8s\service.yaml = k8s\service.yaml
 	EndProjectSection
 EndProject
 Global

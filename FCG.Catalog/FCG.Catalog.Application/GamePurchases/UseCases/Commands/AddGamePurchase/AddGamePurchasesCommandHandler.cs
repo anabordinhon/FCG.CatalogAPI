@@ -84,7 +84,7 @@ public class AddGamePurchasesCommandHandler : IAddGamePurchasesCommandHandler
 
         _logger.LogInformation(
         "OrderPlacedEvent publicado - OrderId: {OrderId}, UserId: {UserId}, GameId: {GameId}, Price: {Price}, Status: {Status}",
-            orderPlacedEvent.OrderId, gamePurchase.UserId, gamePurchase.GameId, gamePurchase.FinalPrice, gamePurchase.StatusPurchase);
+            orderPlacedEvent.OrderId, orderPlacedEvent.UserId, orderPlacedEvent.GameId, gamePurchase.FinalPrice, gamePurchase.StatusPurchase);
 
         return ResultData<GamePurchaseOutput>.Success(gamePurchaseOutput);
     }

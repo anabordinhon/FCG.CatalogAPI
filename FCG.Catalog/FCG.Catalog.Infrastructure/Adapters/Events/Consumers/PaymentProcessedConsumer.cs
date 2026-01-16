@@ -34,8 +34,8 @@ public class PaymentProcessedConsumer : IConsumer<PaymentProcessedEvent>
          "PaymentProcessedEvent recebido - OrderId: {OrderId}, Status: {Status}",
          payment.OrderId, payment.Status);
 
-        var userId = _userContext.GetCurrentUserId();
-        var gamePurchase = await _gamePurchaseQueryRepository.GetByUserGamePurchasesAsync(userId, context.Message.GameId, context.CancellationToken);
+        var userId = payment.UserId;
+        var gamePurchase = await _gamePurchaseQueryRepository.GetByUserGamePurchasesAsync(userId, payment.OrderId, context.CancellationToken);
 
         if (gamePurchase == null)
         {
