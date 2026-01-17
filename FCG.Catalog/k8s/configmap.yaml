@@ -3,5 +3,5 @@ kind: ConfigMap
 metadata:
   name: catalogapi-config
 data:
-  ASPNETCORE_ENVIRONMENT: Development
+  ASPNETCORE_ENVIRONMENT: Production
   ASPNETCORE_URLS: http://+:8080
