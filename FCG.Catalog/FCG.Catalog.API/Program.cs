@@ -125,7 +125,6 @@ builder.Services.AddAuthentication(x =>
 });
 
 var app = builder.Build();
-app.UsePathBase("/prod");
 
 app.UseSwagger();
 app.UseSwaggerUI();
