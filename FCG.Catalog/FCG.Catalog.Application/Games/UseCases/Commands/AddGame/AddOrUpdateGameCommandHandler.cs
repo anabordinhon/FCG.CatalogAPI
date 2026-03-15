@@ -18,16 +18,6 @@ public class AddOrUpdateGameCommandHandler : IAddOrUpdateGameCommandHandler
 
     public async Task<ResultData<GameOutput>> Handle(AddOrUpdateGameCommand command, CancellationToken cancellationToken)
     {
-        var gameExists = await _gameCommandRepository.GameExistsAsync(
-                command.PublicId,
-                command.Description,
-                command.Developer,
-                cancellationToken
-            );
-
-        if (gameExists)
-            return ResultData<GameOutput>.Error("Já existe um jogo com a mesma descrição e desenvolvedora.");
-
         Game game;
 
         if (command.PublicId.HasValue)
@@ -36,6 +26,20 @@ public class AddOrUpdateGameCommandHandler : IAddOrUpdateGameCommandHandler
 
             if (game == null)
                 return ResultData<GameOutput>.Error("Registro não encontrado.");
+
+            // A verificação de duplicidade só é necessária se os campos que formam a chave única (Description, Developer) forem alterados.
+            if (game.Description != command.Description || game.Developer != command.Developer)
+            {
+                var gameExists = await _gameCommandRepository.GameExistsAsync(
+                    command.PublicId,
+                    command.Description,
+                    command.Developer,
+                    cancellationToken
+                );
+
+                if (gameExists)
+                    return ResultData<GameOutput>.Error("Já existe um jogo com a mesma descrição e desenvolvedora.");
+            }
 
             game.UpdateDetails(
                 command.Name,
@@ -50,6 +54,16 @@ public class AddOrUpdateGameCommandHandler : IAddOrUpdateGameCommandHandler
         }
         else
         {
+            var gameExists = await _gameCommandRepository.GameExistsAsync(
+                null, // Na criação, não há ID para excluir da busca
+                command.Description,
+                command.Developer,
+                cancellationToken
+            );
+
+            if (gameExists)
+                return ResultData<GameOutput>.Error("Já existe um jogo com a mesma descrição e desenvolvedora.");
+
             game = Game.Create(
                 command.Name,
                 command.Description,

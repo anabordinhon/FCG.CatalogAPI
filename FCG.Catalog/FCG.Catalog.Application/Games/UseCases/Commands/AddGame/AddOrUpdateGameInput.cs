@@ -22,6 +22,6 @@ public class AddOrUpdateGameInput
             throw new ArgumentException("Gênero do jogo inválido.", nameof(Genre));
         }
 
-        return AddOrUpdateGameCommand.Create(Name, Description, genreEnum, ReleaseDate, Developer, Price.Create(PriceValue), AgeRating.Create(AgeRatingValue), PublicId);
+        return new AddOrUpdateGameCommand(Name, Description, genreEnum, ReleaseDate, Developer, Price.Create(PriceValue), AgeRating.Create(AgeRatingValue), PublicId);
     }
 }
