@@ -56,6 +56,7 @@ builder.Services
         .SetResourceBuilder(
             ResourceBuilder.CreateDefault()
                 .AddService(serviceName, serviceVersion: serviceVersion))
+        .AddSource("MassTransit")
         .AddAspNetCoreInstrumentation(opts => opts.RecordException = true)
         .AddHttpClientInstrumentation()
         .AddEntityFrameworkCoreInstrumentation()
