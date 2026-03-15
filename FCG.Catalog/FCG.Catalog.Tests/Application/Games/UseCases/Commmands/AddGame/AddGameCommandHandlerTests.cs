@@ -47,7 +47,7 @@ namespace FCG.Catalog.Tests.Application.Games.UseCases.Commmands.AddGame
         public async Task Handle_ShouldAddGame_WhenGameDoesNotExist()
         {
             // Arrange
-            var command = AddOrUpdateGameCommand.Create(
+            var command = new AddOrUpdateGameCommand(
                 name: _name,
                 description: _description,
                 genre: GameGenreEnum.ActionRPG,
@@ -85,7 +85,7 @@ namespace FCG.Catalog.Tests.Application.Games.UseCases.Commmands.AddGame
         {
             // Arrange
             var existingGameId = Guid.NewGuid();
-            var existingGameCommand = AddOrUpdateGameCommand.Create(
+            var existingGameCommand = new AddOrUpdateGameCommand(
                 name: _name,
                 description: _description,
                 genre: GameGenreEnum.ActionRPG,

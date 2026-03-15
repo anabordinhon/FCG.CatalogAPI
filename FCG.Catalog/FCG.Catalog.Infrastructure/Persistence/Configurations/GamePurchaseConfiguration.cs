@@ -5,11 +5,15 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace FCG.Catalog.Infraestructure.Persistence.Configurations;
 
-public class GamePurchaseConfigurations : IEntityTypeConfiguration<GamePurchase>
+public class GamePurchaseConfiguration : IEntityTypeConfiguration<GamePurchase>
 {
     public void Configure(EntityTypeBuilder<GamePurchase> builder)
     {
-        builder.ToTable("GamePurchase");
+        builder.ToTable("GamePurchase", b => b.IsTemporal(t =>
+        {
+            t.HasPeriodStart("PeriodStart").HasColumnName("PeriodStart");
+            t.HasPeriodEnd("PeriodEnd").HasColumnName("PeriodEnd");
+        }));
 
         builder.HasKey(gp => gp.Id);
 
@@ -44,6 +48,11 @@ public class GamePurchaseConfigurations : IEntityTypeConfiguration<GamePurchase>
 
         builder.OwnsOne(gp => gp.FinalPrice, price =>
         {
+            price.ToTable("GamePurchase", b => b.IsTemporal(t =>
+            {
+                t.HasPeriodStart("PeriodStart").HasColumnName("PeriodStart");
+                t.HasPeriodEnd("PeriodEnd").HasColumnName("PeriodEnd");
+            }));
             price.Property(p => p.Value)
                 .IsRequired()
                 .HasColumnName("FinalPrice")
@@ -53,6 +62,11 @@ public class GamePurchaseConfigurations : IEntityTypeConfiguration<GamePurchase>
 
         builder.OwnsOne(gp => gp.PromotionValue, promotionValue =>
         {
+            promotionValue.ToTable("GamePurchase", b => b.IsTemporal(t =>
+            {
+                t.HasPeriodStart("PeriodStart").HasColumnName("PeriodStart");
+                t.HasPeriodEnd("PeriodEnd").HasColumnName("PeriodEnd");
+            }));
             promotionValue.Property(pv => pv.Value)
                 .HasColumnName("PromotionValue")
                 .HasColumnType("decimal")

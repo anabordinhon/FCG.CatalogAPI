@@ -43,6 +43,16 @@ namespace FCG.Catalog.Infrastructure.Migrations
                     b.Property<int>("GameId")
                         .HasColumnType("int");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
                     b.Property<int?>("PromotionId")
                         .HasColumnType("int");
 
@@ -65,6 +75,17 @@ namespace FCG.Catalog.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("GamePurchase", (string)null);
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("GamePurchaseHistory");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
                 });
 
             modelBuilder.Entity("FCG.Catalog.Domain.Games.Entities.Game", b =>
@@ -102,6 +123,16 @@ namespace FCG.Catalog.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
                     b.Property<Guid>("PublicId")
                         .HasColumnType("uniqueidentifier");
 
@@ -114,6 +145,17 @@ namespace FCG.Catalog.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Game", (string)null);
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("GameHistory");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
                 });
 
             modelBuilder.Entity("FCG.Catalog.Domain.Promotions.Entities.Promotion", b =>
@@ -186,6 +228,16 @@ namespace FCG.Catalog.Infrastructure.Migrations
                             b1.Property<int>("GamePurchaseId")
                                 .HasColumnType("int");
 
+                            b1.Property<DateTime>("PeriodEnd")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("PeriodEnd");
+
+                            b1.Property<DateTime>("PeriodStart")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("PeriodStart");
+
                             b1.Property<decimal>("Value")
                                 .HasPrecision(18, 2)
                                 .HasColumnType("decimal")
@@ -193,7 +245,18 @@ namespace FCG.Catalog.Infrastructure.Migrations
 
                             b1.HasKey("GamePurchaseId");
 
-                            b1.ToTable("GamePurchase");
+                            b1.ToTable("GamePurchase", (string)null);
+
+                            b1.ToTable(tb => tb.IsTemporal(ttb =>
+                                    {
+                                        ttb.UseHistoryTable("GamePurchaseHistory");
+                                        ttb
+                                            .HasPeriodStart("PeriodStart")
+                                            .HasColumnName("PeriodStart");
+                                        ttb
+                                            .HasPeriodEnd("PeriodEnd")
+                                            .HasColumnName("PeriodEnd");
+                                    }));
 
                             b1.WithOwner()
                                 .HasForeignKey("GamePurchaseId");
@@ -204,6 +267,16 @@ namespace FCG.Catalog.Infrastructure.Migrations
                             b1.Property<int>("GamePurchaseId")
                                 .HasColumnType("int");
 
+                            b1.Property<DateTime>("PeriodEnd")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("PeriodEnd");
+
+                            b1.Property<DateTime>("PeriodStart")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("PeriodStart");
+
                             b1.Property<decimal>("Value")
                                 .HasPrecision(18, 2)
                                 .HasColumnType("decimal")
@@ -211,7 +284,18 @@ namespace FCG.Catalog.Infrastructure.Migrations
 
                             b1.HasKey("GamePurchaseId");
 
-                            b1.ToTable("GamePurchase");
+                            b1.ToTable("GamePurchase", (string)null);
+
+                            b1.ToTable(tb => tb.IsTemporal(ttb =>
+                                    {
+                                        ttb.UseHistoryTable("GamePurchaseHistory");
+                                        ttb
+                                            .HasPeriodStart("PeriodStart")
+                                            .HasColumnName("PeriodStart");
+                                        ttb
+                                            .HasPeriodEnd("PeriodEnd")
+                                            .HasColumnName("PeriodEnd");
+                                    }));
 
                             b1.WithOwner()
                                 .HasForeignKey("GamePurchaseId");
@@ -232,6 +316,16 @@ namespace FCG.Catalog.Infrastructure.Migrations
                             b1.Property<int>("GameId")
                                 .HasColumnType("int");
 
+                            b1.Property<DateTime>("PeriodEnd")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("PeriodEnd");
+
+                            b1.Property<DateTime>("PeriodStart")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("PeriodStart");
+
                             b1.Property<decimal>("Value")
                                 .HasPrecision(18, 2)
                                 .HasColumnType("decimal")
@@ -239,7 +333,18 @@ namespace FCG.Catalog.Infrastructure.Migrations
 
                             b1.HasKey("GameId");
 
-                            b1.ToTable("Game");
+                            b1.ToTable("Game", (string)null);
+
+                            b1.ToTable(tb => tb.IsTemporal(ttb =>
+                                    {
+                                        ttb.UseHistoryTable("GameHistory");
+                                        ttb
+                                            .HasPeriodStart("PeriodStart")
+                                            .HasColumnName("PeriodStart");
+                                        ttb
+                                            .HasPeriodEnd("PeriodEnd")
+                                            .HasColumnName("PeriodEnd");
+                                    }));
 
                             b1.WithOwner()
                                 .HasForeignKey("GameId");
@@ -252,7 +357,17 @@ namespace FCG.Catalog.Infrastructure.Migrations
 
                             b1.Property<int>("MinimiumAge")
                                 .HasColumnType("int")
-                                .HasColumnName("MinimumAge");
+                                .HasColumnName("MinimiumAge");
+
+                            b1.Property<DateTime>("PeriodEnd")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("PeriodEnd");
+
+                            b1.Property<DateTime>("PeriodStart")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("PeriodStart");
 
                             b1.Property<string>("Rating")
                                 .IsRequired()
@@ -262,7 +377,18 @@ namespace FCG.Catalog.Infrastructure.Migrations
 
                             b1.HasKey("GameId");
 
-                            b1.ToTable("Game");
+                            b1.ToTable("Game", (string)null);
+
+                            b1.ToTable(tb => tb.IsTemporal(ttb =>
+                                    {
+                                        ttb.UseHistoryTable("GameHistory");
+                                        ttb
+                                            .HasPeriodStart("PeriodStart")
+                                            .HasColumnName("PeriodStart");
+                                        ttb
+                                            .HasPeriodEnd("PeriodEnd")
+                                            .HasColumnName("PeriodEnd");
+                                    }));
 
                             b1.WithOwner()
                                 .HasForeignKey("GameId");

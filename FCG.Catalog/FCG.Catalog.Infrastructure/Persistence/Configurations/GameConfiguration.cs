@@ -8,7 +8,11 @@ public class GameConfiguration : IEntityTypeConfiguration<Game>
 {
     public void Configure(EntityTypeBuilder<Game> builder)
     {
-        builder.ToTable("Game");
+        builder.ToTable("Game", b => b.IsTemporal(t =>
+        {
+            t.HasPeriodStart("PeriodStart").HasColumnName("PeriodStart");
+            t.HasPeriodEnd("PeriodEnd").HasColumnName("PeriodEnd");
+        }));
 
         builder.HasKey(g => g.Id);
 
@@ -51,6 +55,11 @@ public class GameConfiguration : IEntityTypeConfiguration<Game>
 
         builder.OwnsOne(g => g.AgeRating, ageRating =>
         {
+            ageRating.ToTable("Game", b => b.IsTemporal(t =>
+            {
+                t.HasPeriodStart("PeriodStart").HasColumnName("PeriodStart");
+                t.HasPeriodEnd("PeriodEnd").HasColumnName("PeriodEnd");
+            }));
             ageRating.Property(ar => ar.Rating)
                 .IsRequired()
                 .HasMaxLength(10)
@@ -58,12 +67,17 @@ public class GameConfiguration : IEntityTypeConfiguration<Game>
 
             ageRating.Property(ar => ar.MinimiumAge)
                 .IsRequired()
-                .HasColumnName("MinimumAge");
+                .HasColumnName("MinimiumAge");
         });
 
         builder.OwnsOne(g => g.Price,
             ar =>
             {
+                ar.ToTable("Game", b => b.IsTemporal(t =>
+                {
+                    t.HasPeriodStart("PeriodStart").HasColumnName("PeriodStart");
+                    t.HasPeriodEnd("PeriodEnd").HasColumnName("PeriodEnd");
+                }));
                 ar.Property(p => p.Value)
                 .IsRequired()
                 .HasColumnName("Price")
