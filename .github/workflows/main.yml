@@ -268,11 +268,17 @@ jobs:
       # sempre há pelo menos 2 pods respondendo requisições.
       - name: Deploy application (Rolling Update)
         run: |
+          # Primeiro aplica o YAML (cria o deployment se não existir)
           kubectl apply -f FCG.Catalog/k8s/catalogapi-deployment.yaml
           kubectl apply -f FCG.Catalog/k8s/catalogapi-service.yaml
+      
+          # Agora sim atualiza a imagem — o deployment já existe neste ponto.
+          # Para Deployments (diferente de Jobs) o pod template É mutável,
+          # por isso kubectl set image funciona aqui.
           kubectl set image deployment/catalogapi \
             catalogapi=${{ secrets.DOCKER_USERNAME }}/catalog-api-image:${{ env.IMAGE_TAG }} \
             -n ${{ env.NAMESPACE }}
+      
           kubectl rollout status deployment/catalogapi \
             -n ${{ env.NAMESPACE }} \
             --timeout=180s
