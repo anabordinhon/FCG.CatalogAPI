@@ -1,4 +1,4 @@
-name: Deploy CatalogApi to EKS
+name: CI/CD - CatalogApi to EKS
 
 on:
   push:
@@ -8,56 +8,192 @@ env:
   AWS_REGION: us-east-1
   EKS_CLUSTER_NAME: fcg-eks
   NAMESPACE: fcg
+  # Define a tag de versão uma vez aqui.
+  # github.sha é o hash do commit (ex: a3f8c12b).
+  # Usamos os primeiros 7 caracteres para ficar legível.
+  IMAGE_TAG: ${{ github.sha }}
+
+# ─────────────────────────────────────────────────────────────────
+# O pipeline é dividido em 3 JOBS que rodam em sequência.
+# Se um job falha, os seguintes não executam (proteção automática).
+# ─────────────────────────────────────────────────────────────────
 
 jobs:
-  build-and-deploy:
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 1 — BUILD & TEST
+  # Compila o código .NET e roda os testes unitários.
+  # Se os testes falharem, nenhuma imagem é gerada nem deployada.
+  # ═══════════════════════════════════════════════════════════════
+  build-and-test:
+    name: Build & Test
     runs-on: ubuntu-latest
 
     steps:
-      # ─────────────────────────────────────────
-      # 1. Checkout do código
-      # ─────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ─────────────────────────────────────────
-      # 2. Login no Docker Hub
-      # ─────────────────────────────────────────
+      # Instala o .NET 8 SDK no runner do GitHub.
+      # Necessário para compilar e testar o projeto antes de dockerizar.
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # Restaura as dependências NuGet de todos os projetos.
+      # O contexto é a pasta FCG.Catalog onde estão os .csproj.
+      - name: Restore dependencies
+        run: dotnet restore
+        working-directory: ./FCG.Catalog
+
+      # Compila o projeto em modo Release.
+      # --no-restore: já restauramos no passo anterior, evita repetição.
+      # Se houver erro de compilação, o job para aqui.
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+        working-directory: ./FCG.Catalog
+
+      # Roda todos os projetos de teste encontrados na solução.
+      # --no-build: já compilamos acima.
+      # Se qualquer teste falhar, o job para e os jobs seguintes
+      # (containerização + deploy) NÃO executam.
+      - name: Run unit tests
+        run: dotnet test --configuration Release --no-build --verbosity normal
+        working-directory: ./FCG.Catalog
+
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 2 — CONTAINERIZE, SCAN & PUSH
+  # Só roda se o Job 1 (build-and-test) passou.
+  # Gera as imagens Docker, escaneia por vulnerabilidades e envia
+  # ao Docker Hub com tags versionadas.
+  # ═══════════════════════════════════════════════════════════════
+  containerize-and-push:
+    name: Containerize, Scan & Push
+    runs-on: ubuntu-latest
+    # "needs" define dependência: este job só começa se o anterior terminar com sucesso
+    needs: build-and-test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # ─────────────────────────────────────────
-      # 3. Build e push da imagem da API
-      # ─────────────────────────────────────────
-      - name: Build and push API image
+      # Constrói a imagem da API com DUAS tags:
+      #
+      # Tag 1 → :latest
+      #   Convenção histórica. Sempre aponta para a versão mais recente.
+      #   Útil para desenvolvimento e testes rápidos.
+      #
+      # Tag 2 → :a3f8c12b... (hash do commit git)
+      #   Imutável e rastreável. Se um deploy causar problema, você sabe
+      #   EXATAMENTE qual commit gerou aquela imagem e pode fazer rollback.
+      #   Boa prática obrigatória em produção.
+      - name: Build API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./FCG.Catalog
+          file: ./FCG.Catalog/FCG.Catalog.API/Dockerfile
+          target: runtime
+          # push: false — só gera a imagem localmente para escanear primeiro
+          push: false
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:latest
+            ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:${{ env.IMAGE_TAG }}
+          # load: true — carrega a imagem no Docker local do runner para o Trivy analisar
+          load: true
+
+      # ── SECURITY SCAN com Trivy ──────────────────────────────
+      # Trivy é uma ferramenta open-source da Aqua Security.
+      # Ele inspeciona a imagem Docker em busca de:
+      #   - CVEs (vulnerabilidades conhecidas) nas libs do OS e NuGet
+      #   - Secrets acidentalmente embutidos (senhas, tokens)
+      #   - Configurações inseguras
+      #
+      # severity: CRITICAL,HIGH — só falha o pipeline para problemas graves.
+      #   Você pode ajustar para incluir MEDIUM quando o projeto amadurecer.
+      #
+      # exit-code: '1' — se encontrar vulnerabilidade no nível configurado,
+      #   o job falha e o push NÃO acontece. Isso é o "gate de segurança".
+      #
+      # ignore-unfixed: true — ignora CVEs que ainda não têm correção
+      #   disponível (não adianta bloquear o deploy por algo que não pode
+      #   ser resolvido hoje).
+      - name: Security scan - API image (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:${{ env.IMAGE_TAG }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
+      # Só faz o push APÓS o scan passar.
+      # Publica as duas tags (latest + hash) no Docker Hub.
+      - name: Push API image
         uses: docker/build-push-action@v5
         with:
           context: ./FCG.Catalog
           file: ./FCG.Catalog/FCG.Catalog.API/Dockerfile
           target: runtime
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:latest
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:latest
+            ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:${{ env.IMAGE_TAG }}
 
-      # ─────────────────────────────────────────
-      # 4. Build e push da imagem de migrations
-      # ─────────────────────────────────────────
-      - name: Build and push Migrations image
+      # Build, scan e push da imagem de migrations (mesmo processo).
+      - name: Build Migrations image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./FCG.Catalog
+          file: ./FCG.Catalog/FCG.Catalog.API/Dockerfile
+          target: migrations
+          push: false
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:migrations
+            ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:migrations-${{ env.IMAGE_TAG }}
+          load: true
+
+      - name: Security scan - Migrations image (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:migrations-${{ env.IMAGE_TAG }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
+      - name: Push Migrations image
         uses: docker/build-push-action@v5
         with:
           context: ./FCG.Catalog
           file: ./FCG.Catalog/FCG.Catalog.API/Dockerfile
           target: migrations
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:migrations
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:migrations
+            ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:migrations-${{ env.IMAGE_TAG }}
 
-      # ─────────────────────────────────────────
-      # 5. Configurar credenciais AWS
-      #    Usa os secrets AWS_ACCESS_KEY_ID,
-      #    AWS_SECRET_ACCESS_KEY e AWS_SESSION_TOKEN
-      # ─────────────────────────────────────────
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 3 — DEPLOY
+  # Só roda se o Job 2 (containerize-and-push) passou.
+  # Aplica os manifestos no EKS com Rolling Update (zero downtime).
+  # ═══════════════════════════════════════════════════════════════
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: containerize-and-push
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -66,39 +202,22 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # ─────────────────────────────────────────
-      # 6. Instalar kubectl
-      # ─────────────────────────────────────────
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
           version: 'v1.32.0'
 
-      # ─────────────────────────────────────────
-      # 7. Conectar ao cluster EKS
-      #    Atualiza o ~/.kube/config do runner
-      # ─────────────────────────────────────────
       - name: Update kubeconfig for EKS
         run: |
           aws eks update-kubeconfig \
             --name ${{ env.EKS_CLUSTER_NAME }} \
             --region ${{ env.AWS_REGION }}
 
-      # ─────────────────────────────────────────
-      # 8. Criar namespace e configmap
-      # ─────────────────────────────────────────
       - name: Apply namespace and configmap
         run: |
           kubectl apply -f FCG.Catalog/k8s/catalogapi-namespace.yaml
           kubectl apply -f FCG.Catalog/k8s/catalogapi-configmap.yaml
 
-      # ─────────────────────────────────────────
-      # 9. Criar/atualizar o Kubernetes Secret
-      #    (substitui o antigo .env do EC2)
-      #    --dry-run=client | kubectl apply
-      #    garante idempotência: cria na 1ª vez,
-      #    atualiza nas próximas sem erro.
-      # ─────────────────────────────────────────
       - name: Create or update Kubernetes Secret
         run: |
           kubectl create secret generic catalogapi-secret \
@@ -115,45 +234,49 @@ jobs:
             --from-literal=AWS_SQS_QUEUE_URL="${{ secrets.AWS_SQS_QUEUE_URL }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      # ─────────────────────────────────────────
-      # 10. Remover job de migration anterior
-      #     (Jobs concluídos não podem ser re-aplicados
-      #      sem deletar antes)
-      # ─────────────────────────────────────────
       - name: Delete old migration job if exists
         run: |
           kubectl delete job catalogapi-migration \
             -n ${{ env.NAMESPACE }} \
             --ignore-not-found=true
 
-      # ─────────────────────────────────────────
-      # 11. Executar migrations do banco de dados
-      #     Aguarda conclusão com timeout de 2 min
-      # ─────────────────────────────────────────
+      # Usa a tag com o hash do commit para a migration.
+      # Assim a migration roda exatamente com o código deste commit,
+      # sem risco de usar uma imagem desatualizada.
       - name: Run database migration
         run: |
           kubectl apply -f FCG.Catalog/k8s/catalogapi-migration-job.yaml
+          kubectl set image job/catalogapi-migration \
+            catalogapi-migration=${{ secrets.DOCKER_USERNAME }}/catalog-api-image:migrations-${{ env.IMAGE_TAG }} \
+            -n ${{ env.NAMESPACE }}
           kubectl wait --for=condition=complete \
             job/catalogapi-migration \
             -n ${{ env.NAMESPACE }} \
             --timeout=120s
 
-      # ─────────────────────────────────────────
-      # 12. Deploy da aplicação e do service
-      #     Aguarda o rollout do deployment
-      # ─────────────────────────────────────────
-      - name: Deploy application
+      # ── ROLLING UPDATE ───────────────────────────────────────
+      # "kubectl set image" atualiza APENAS a tag da imagem no
+      # deployment, sem precisar editar o arquivo YAML.
+      #
+      # O Kubernetes então executa o Rolling Update automaticamente:
+      #   1. Sobe 1 pod novo com a imagem nova (maxSurge: 1)
+      #   2. Espera ele ficar Ready (readinessProbe passa)
+      #   3. Derruba 1 pod antigo (maxUnavailable: 0)
+      #   4. Repete até todos os pods estarem atualizados
+      #
+      # Durante esse processo a aplicação nunca fica fora do ar —
+      # sempre há pelo menos 2 pods respondendo requisições.
+      - name: Deploy application (Rolling Update)
         run: |
           kubectl apply -f FCG.Catalog/k8s/catalogapi-deployment.yaml
           kubectl apply -f FCG.Catalog/k8s/catalogapi-service.yaml
+          kubectl set image deployment/catalogapi \
+            catalogapi=${{ secrets.DOCKER_USERNAME }}/catalog-api-image:${{ env.IMAGE_TAG }} \
+            -n ${{ env.NAMESPACE }}
           kubectl rollout status deployment/catalogapi \
             -n ${{ env.NAMESPACE }} \
             --timeout=180s
 
-      # ─────────────────────────────────────────
-      # 13. Mostrar status final (sempre roda,
-      #     mesmo que passos anteriores falhem)
-      # ─────────────────────────────────────────
       - name: Show deployment status
         if: always()
         run: |
@@ -161,5 +284,9 @@ jobs:
           kubectl get pods -n ${{ env.NAMESPACE }} -o wide
           echo "========== SERVICES =========="
           kubectl get svc -n ${{ env.NAMESPACE }}
-          echo "========== EVENTS (últimos problemas) =========="
+          echo "========== IMAGEM DEPLOYADA =========="
+          kubectl get deployment catalogapi -n ${{ env.NAMESPACE }} \
+            -o jsonpath='{.spec.template.spec.containers[0].image}'
+          echo ""
+          echo "========== EVENTOS =========="
           kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' | tail -20
