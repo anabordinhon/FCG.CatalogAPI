@@ -240,15 +240,18 @@ jobs:
             -n ${{ env.NAMESPACE }} \
             --ignore-not-found=true
 
-      # Usa a tag com o hash do commit para a migration.
-      # Assim a migration roda exatamente com o código deste commit,
-      # sem risco de usar uma imagem desatualizada.
+      # Usa sed para injetar a tag versionada DENTRO do YAML antes de aplicar.
+      # Jobs do Kubernetes têm pod template imutável — não é possível alterar
+      # a imagem depois que o Job foi criado (kubectl set image falha com
+      # "field is immutable"). Por isso substituímos a tag antes do apply,
+      # fazendo o Job já nascer com a imagem certa deste commit.
       - name: Run database migration
         run: |
+          sed -i "s|image:.*catalog-api-image:migrations.*|image: ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:migrations-${{ env.IMAGE_TAG }}|" \
+            FCG.Catalog/k8s/catalogapi-migration-job.yaml
+
           kubectl apply -f FCG.Catalog/k8s/catalogapi-migration-job.yaml
-          kubectl set image job/catalogapi-migration \
-            catalogapi-migration=${{ secrets.DOCKER_USERNAME }}/catalog-api-image:migrations-${{ env.IMAGE_TAG }} \
-            -n ${{ env.NAMESPACE }}
+
           kubectl wait --for=condition=complete \
             job/catalogapi-migration \
             -n ${{ env.NAMESPACE }} \
@@ -266,19 +269,17 @@ jobs:
       #
       # Durante esse processo a aplicação nunca fica fora do ar —
       # sempre há pelo menos 2 pods respondendo requisições.
+      # Para Deployments (diferente de Jobs) o pod template É mutável,
+      # por isso kubectl set image funciona aqui sem problemas.
       - name: Deploy application (Rolling Update)
         run: |
-          # Primeiro aplica o YAML (cria o deployment se não existir)
           kubectl apply -f FCG.Catalog/k8s/catalogapi-deployment.yaml
           kubectl apply -f FCG.Catalog/k8s/catalogapi-service.yaml
-      
-          # Agora sim atualiza a imagem — o deployment já existe neste ponto.
-          # Para Deployments (diferente de Jobs) o pod template É mutável,
-          # por isso kubectl set image funciona aqui.
+
           kubectl set image deployment/catalogapi \
             catalogapi=${{ secrets.DOCKER_USERNAME }}/catalog-api-image:${{ env.IMAGE_TAG }} \
             -n ${{ env.NAMESPACE }}
-      
+
           kubectl rollout status deployment/catalogapi \
             -n ${{ env.NAMESPACE }} \
             --timeout=180s
