@@ -48,14 +48,14 @@ namespace FCG.Catalog.Tests.Application.Games.UseCases.Commmands.AddGame
         {
             // Arrange
             var command = new AddOrUpdateGameCommand(
-                name: _name,
-                description: _description,
-                genre: GameGenreEnum.ActionRPG,
-                releaseDate: _baseDate,
-                developer: _developer,
-                price: new Price(_priceValue),
-                ageRating: new AgeRating("18+", 18),
-                publicId: null
+                Name: _name,
+                Description: _description,
+                Genre: GameGenreEnum.ActionRPG,
+                ReleaseDate: _baseDate,
+                Developer: _developer,
+                Price: new Price(_priceValue),
+                AgeRating: new AgeRating("18+", 18),
+                PublicId: null
             );
 
             _gameRepositoryMock
@@ -86,14 +86,14 @@ namespace FCG.Catalog.Tests.Application.Games.UseCases.Commmands.AddGame
             // Arrange
             var existingGameId = Guid.NewGuid();
             var existingGameCommand = new AddOrUpdateGameCommand(
-                name: _name,
-                description: _description,
-                genre: GameGenreEnum.ActionRPG,
-                releaseDate: _baseDate,
-                developer: _developer,
-                price: new Price(_priceValue),
-                ageRating: new AgeRating("16+", 16),
-                publicId: existingGameId
+                Name: _name,
+                Description: _description,
+                Genre: GameGenreEnum.ActionRPG,
+                ReleaseDate: _baseDate,
+                Developer: _developer,
+                Price: new Price(_priceValue),
+                AgeRating: new AgeRating("16+", 16),
+                PublicId: existingGameId
             );
 
             var existingGameEntity = Game.Create(
