@@ -1,23 +1,37 @@
-name: Deploy CatalogApi to EC2
+name: Deploy CatalogApi to EKS
 
 on:
   push:
     branches: [ "main" ]
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER_NAME: fcg-eks
+  NAMESPACE: fcg
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # ─────────────────────────────────────────
+      # 1. Checkout do código
+      # ─────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ─────────────────────────────────────────
+      # 2. Login no Docker Hub
+      # ─────────────────────────────────────────
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      # ─────────────────────────────────────────
+      # 3. Build e push da imagem da API
+      # ─────────────────────────────────────────
       - name: Build and push API image
         uses: docker/build-push-action@v5
         with:
@@ -27,6 +41,9 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:latest
 
+      # ─────────────────────────────────────────
+      # 4. Build e push da imagem de migrations
+      # ─────────────────────────────────────────
       - name: Build and push Migrations image
         uses: docker/build-push-action@v5
         with:
@@ -36,21 +53,113 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/catalog-api-image:migrations
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v0.1.10
+      # ─────────────────────────────────────────
+      # 5. Configurar credenciais AWS
+      #    Usa os secrets AWS_ACCESS_KEY_ID,
+      #    AWS_SECRET_ACCESS_KEY e AWS_SESSION_TOKEN
+      # ─────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 15m
-          script: |
-            set -euo pipefail
-            cd /home/ubuntu/app
-            docker compose up -d rabbitmq
-            echo "Aguardando RabbitMQ ficar healthy..."
-            sleep 20
-            docker compose pull catalogapi-migration catalogapi
-            docker compose up catalogapi-migration --no-deps
-            docker compose up -d catalogapi --no-deps
-            docker compose ps
-            docker image prune -f
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ─────────────────────────────────────────
+      # 6. Instalar kubectl
+      # ─────────────────────────────────────────
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.32.0'
+
+      # ─────────────────────────────────────────
+      # 7. Conectar ao cluster EKS
+      #    Atualiza o ~/.kube/config do runner
+      # ─────────────────────────────────────────
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ env.EKS_CLUSTER_NAME }} \
+            --region ${{ env.AWS_REGION }}
+
+      # ─────────────────────────────────────────
+      # 8. Criar namespace e configmap
+      # ─────────────────────────────────────────
+      - name: Apply namespace and configmap
+        run: |
+          kubectl apply -f k8s/catalogapi-namespace.yaml
+          kubectl apply -f k8s/catalogapi-configmap.yaml
+
+      # ─────────────────────────────────────────
+      # 9. Criar/atualizar o Kubernetes Secret
+      #    (substitui o antigo .env do EC2)
+      #    --dry-run=client | kubectl apply
+      #    garante idempotência: cria na 1ª vez,
+      #    atualiza nas próximas sem erro.
+      # ─────────────────────────────────────────
+      - name: Create or update Kubernetes Secret
+        run: |
+          kubectl create secret generic catalogapi-secret \
+            --namespace=${{ env.NAMESPACE }} \
+            --from-literal=ConnectionStrings__DefaultConnection="${{ secrets.CATALOG_DB_CONNECTION_STRING }}" \
+            --from-literal=Jwt__SecretKey="${{ secrets.JWT_SECRET_KEY }}" \
+            --from-literal=DefaultAdmin__Password="${{ secrets.DEFAULT_ADMIN_PASSWORD }}" \
+            --from-literal=RabbitMQ__Host="fcg-rabbitmq" \
+            --from-literal=RabbitMQ__Username="${{ secrets.RABBITMQ_USERNAME }}" \
+            --from-literal=RabbitMQ__Password="${{ secrets.RABBITMQ_PASSWORD }}" \
+            --from-literal=AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            --from-literal=AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            --from-literal=AWS_SESSION_TOKEN="${{ secrets.AWS_SESSION_TOKEN }}" \
+            --from-literal=AWS_SQS_QUEUE_URL="${{ secrets.AWS_SQS_QUEUE_URL }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # ─────────────────────────────────────────
+      # 10. Remover job de migration anterior
+      #     (Jobs concluídos não podem ser re-aplicados
+      #      sem deletar antes)
+      # ─────────────────────────────────────────
+      - name: Delete old migration job if exists
+        run: |
+          kubectl delete job catalogapi-migration \
+            -n ${{ env.NAMESPACE }} \
+            --ignore-not-found=true
+
+      # ─────────────────────────────────────────
+      # 11. Executar migrations do banco de dados
+      #     Aguarda conclusão com timeout de 2 min
+      # ─────────────────────────────────────────
+      - name: Run database migration
+        run: |
+          kubectl apply -f k8s/catalogapi-migration-job.yaml
+          kubectl wait --for=condition=complete \
+            job/catalogapi-migration \
+            -n ${{ env.NAMESPACE }} \
+            --timeout=120s
+
+      # ─────────────────────────────────────────
+      # 12. Deploy da aplicação e do service
+      #     Aguarda o rollout do deployment
+      # ─────────────────────────────────────────
+      - name: Deploy application
+        run: |
+          kubectl apply -f k8s/catalogapi-deployment.yaml
+          kubectl apply -f k8s/catalogapi-service.yaml
+          kubectl rollout status deployment/catalogapi \
+            -n ${{ env.NAMESPACE }} \
+            --timeout=180s
+
+      # ─────────────────────────────────────────
+      # 13. Mostrar status final (sempre roda,
+      #     mesmo que passos anteriores falhem)
+      # ─────────────────────────────────────────
+      - name: Show deployment status
+        if: always()
+        run: |
+          echo "========== PODS =========="
+          kubectl get pods -n ${{ env.NAMESPACE }} -o wide
+          echo "========== SERVICES =========="
+          kubectl get svc -n ${{ env.NAMESPACE }}
+          echo "========== EVENTS (últimos problemas) =========="
+          kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' | tail -20
