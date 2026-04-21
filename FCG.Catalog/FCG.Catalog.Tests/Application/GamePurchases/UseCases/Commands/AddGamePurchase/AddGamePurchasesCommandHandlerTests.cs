@@ -95,7 +95,8 @@ namespace FCG.Catalog.Tests.Application.GamePurchases.UseCases.Commands.AddGameP
             var result = await _handler.Handle(command, CancellationToken.None);
 
             result.IsSuccess.Should().BeTrue();
-            result.Data.FinalPrice.Should().Be(80); // 100 - 20
+            result.Data.Should().NotBeNull();
+            result.Data!.FinalPrice.Should().Be(80); // 100 - 20
             result.Data.PromotionValue!.Value.Should().Be(20);
             _eventPublisherMock.Verify(x => x.PublishAsync(It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -174,7 +175,8 @@ namespace FCG.Catalog.Tests.Application.GamePurchases.UseCases.Commands.AddGameP
             var result = await _handler.Handle(command, CancellationToken.None);
 
             result.IsSuccess.Should().BeTrue();
-            result.Data.FinalPrice.Should().Be(150); // 200 - 50
+            result.Data.Should().NotBeNull();
+            result.Data!.FinalPrice.Should().Be(150); // 200 - 50
             result.Data.PromotionValue!.Value.Should().Be(50);
             _eventPublisherMock.Verify(x => x.PublishAsync(It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -212,7 +214,8 @@ namespace FCG.Catalog.Tests.Application.GamePurchases.UseCases.Commands.AddGameP
             var result = await _handler.Handle(command, CancellationToken.None);
 
             result.IsSuccess.Should().BeTrue();
-            result.Data.FinalPrice.Should().Be(120); // Sem desconto
+            result.Data.Should().NotBeNull();
+            result.Data!.FinalPrice.Should().Be(120); // Sem desconto
             result.Data.PromotionValue!.Value.Should().Be(0); // Promoção zerada
             _eventPublisherMock.Verify(x => x.PublishAsync(It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Once);
         }
