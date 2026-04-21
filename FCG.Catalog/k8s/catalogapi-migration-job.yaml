@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: catalogapi-migration
+  namespace: fcg
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: catalogapi-migration
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: catalogapi-migration
+          image: daiana2026dev/catalog-api-image:migrations
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: catalogapi-config
+            - secretRef:
+                name: catalogapi-secret
