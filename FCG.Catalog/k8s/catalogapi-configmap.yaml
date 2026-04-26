@@ -7,3 +7,5 @@ data:
   ASPNETCORE_ENVIRONMENT: "Production"
   ASPNETCORE_URLS: "http://+:8080"
   AWS_EC2_METADATA_DISABLED: "true"
+  AWS_REGION: "us-east-1"
+  AWS_DEFAULT_REGION: "us-east-1"
