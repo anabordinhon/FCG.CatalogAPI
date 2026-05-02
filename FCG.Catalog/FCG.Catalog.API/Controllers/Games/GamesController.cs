@@ -1,5 +1,7 @@
 using FCG.Catalog.API.Common.Outputs;
 using FCG.Catalog.Application.Common.Contracts;
+using FCG.Catalog.Application.Games.;
+using FCG.Catalog.Application.Games.Ports;
 using FCG.Catalog.Application.Games.UseCases.Commands.AddGame;
 using FCG.Catalog.Application.Games.UseCases.Queries.GetGameById;
 using FCG.Catalog.Application.Games.UseCases.Queries.GetGamesPaged;
@@ -25,6 +27,22 @@ public class GamesController : ControllerBase
         var result = await handler.Handle(query, cancellationToken);
 
         return result.ToOkActionResult();
+    }
+
+    [HttpGet("search")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Search(
+    [FromQuery] string q,
+    [FromServices] IGameSearchRepository searchRepository,
+    CancellationToken cancellationToken,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+            return BadRequest("O parâmetro 'q' é obrigatório.");
+
+        var results = await searchRepository.SearchAsync(q, page, pageSize, cancellationToken);
+        return Ok(results);
     }
 
     [HttpGet("{publicId}")]
