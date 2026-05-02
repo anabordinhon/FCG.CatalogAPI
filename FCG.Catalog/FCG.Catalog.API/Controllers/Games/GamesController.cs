@@ -1,6 +1,5 @@
 using FCG.Catalog.API.Common.Outputs;
 using FCG.Catalog.Application.Common.Contracts;
-using FCG.Catalog.Application.Games.;
 using FCG.Catalog.Application.Games.Ports;
 using FCG.Catalog.Application.Games.UseCases.Commands.AddGame;
 using FCG.Catalog.Application.Games.UseCases.Queries.GetGameById;
