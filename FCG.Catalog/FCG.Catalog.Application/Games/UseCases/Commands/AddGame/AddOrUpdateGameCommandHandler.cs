@@ -1,6 +1,7 @@
 using FCG.Catalog.Application.Common;
 using FCG.Catalog.Application.Games.Mappers;
 using FCG.Catalog.Application.Games.Outputs;
+using FCG.Catalog.Application.Games.Ports;
 using FCG.Catalog.Domain.Games.Entities;
 using FCG.Catalog.Domain.Games.Ports;
 
@@ -10,10 +11,15 @@ namespace FCG.Catalog.Application.Games.UseCases.Commands.AddGame;
 public class AddOrUpdateGameCommandHandler : IAddOrUpdateGameCommandHandler
 {
     private readonly IGameCommandRepository _gameCommandRepository;
+    private readonly IGameSearchRepository _gameSearchRepository;
 
-    public AddOrUpdateGameCommandHandler(IGameCommandRepository gameCommandRepository)
+
+    public AddOrUpdateGameCommandHandler(
+        IGameCommandRepository gameCommandRepository,
+        IGameSearchRepository gameSearchRepository)
     {
         _gameCommandRepository = gameCommandRepository;
+        _gameSearchRepository = gameSearchRepository;
     }
 
     public async Task<ResultData<GameOutput>> Handle(AddOrUpdateGameCommand command, CancellationToken cancellationToken)
@@ -76,6 +82,17 @@ public class AddOrUpdateGameCommandHandler : IAddOrUpdateGameCommandHandler
 
             await _gameCommandRepository.AddAsync(game, cancellationToken);
         }
+
+        var indexDto = new GameIndexDto(
+            game.PublicId,
+            game.Name,
+            game.Description,
+            game.Developer,
+            game.Genre.ToString(),
+            game.Price.Value
+        );
+
+        await _gameSearchRepository.IndexAsync(indexDto, cancellationToken);
 
         var gameOutput = game.ToOutput();
 

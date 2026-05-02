@@ -2,6 +2,7 @@ using FCG.Catalog.API.Common;
 using FCG.Catalog.Application.GamePurchases.Ports;
 using FCG.Catalog.Application.GamePurchases.UseCases.Commands.AddGamePurchase;
 using FCG.Catalog.Application.GamePurchases.UseCases.Queries;
+using FCG.Catalog.Application.Games.Ports;
 using FCG.Catalog.Application.Games.UseCases.Commands.AddGame;
 using FCG.Catalog.Application.Games.UseCases.Queries.GetGameById;
 using FCG.Catalog.Application.Games.UseCases.Queries.GetGamesPaged;
@@ -17,11 +18,14 @@ using FCG.Catalog.Infraestructure.Adapters.Promotions.Repositories;
 using FCG.Catalog.Infraestructure.Adapters.Promotions.Services;
 using FCG.Catalog.Infraestructure.Persistence;
 using FCG.Catalog.Infraestructure.Persistence.Interceptors;
+using FCG.Catalog.Infrastructure.Adapters.Games.Repositories;
 using FCG.Catalog.Infrastructure.Configuration;
+using FCG.Catalog.Infrastructure.Elastic;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Nest;
 using OpenTelemetry;
 using OpenTelemetry.Context.Propagation;
 using OpenTelemetry.Exporter;
@@ -168,10 +172,6 @@ builder.Services.AddSwaggerGen(c =>
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"]
     ?? throw new InvalidOperationException("JWT SecretKey não configurada (verifique appsettings / User Secrets)");
 
-Console.WriteLine($"=== JWT CONFIG CATALOG ===");
-Console.WriteLine($"JWT Key Length: {jwtSecretKey.Length}");
-Console.WriteLine($"JWT Key (primeiros 10 chars): {jwtSecretKey.Substring(0, Math.Min(10, jwtSecretKey.Length))}...");
-Console.WriteLine($"=========================");
 
 var key = Encoding.ASCII.GetBytes(jwtSecretKey);
 
@@ -192,6 +192,22 @@ builder.Services.AddAuthentication(x =>
         ValidateAudience = false
     };
 });
+
+builder.Services.AddSingleton<IElasticClient>(_ =>
+{
+    var uri = builder.Configuration["Elasticsearch:Uri"]
+              ?? "http://fcg-elasticsearch:9200";
+
+    var settings = new ConnectionSettings(new Uri(uri))
+        .DefaultMappingFor<GameDocument>(m => m
+            .IndexName("fcg-games")
+            .IdProperty(d => d.Id)
+        );
+
+    return new ElasticClient(settings);
+});
+
+builder.Services.AddScoped<IGameSearchRepository, GameSearchRepository>();
 
 var app = builder.Build();
 
@@ -215,5 +231,11 @@ app.UseAuthorization();
 app.MapHealthChecks("/health");
 
 app.MapControllers();
+
+using (var scope = app.Services.CreateScope())
+{
+    var esClient = scope.ServiceProvider.GetRequiredService<IElasticClient>();
+    await ElasticsearchInitializer.EnsureIndexAsync(esClient);
+}
 
 app.Run();

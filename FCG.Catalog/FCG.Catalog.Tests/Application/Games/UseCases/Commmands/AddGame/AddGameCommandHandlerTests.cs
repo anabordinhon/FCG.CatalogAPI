@@ -1,6 +1,7 @@
 using Bogus;
 using FCG.Catalog.Application.Games.UseCases.Commands.AddGame;
 using FCG.Catalog.Application.Games.Outputs;
+using FCG.Catalog.Application.Games.Ports;
 using FCG.Catalog.Domain.Common.ValueObjects;
 using FCG.Catalog.Domain.Games.Entities;
 using FCG.Catalog.Domain.Games.Enum;
@@ -14,6 +15,7 @@ namespace FCG.Catalog.Tests.Application.Games.UseCases.Commmands.AddGame
     public class AddOrUpdateGameCommandHandlerTests
     {
         private readonly Mock<IGameCommandRepository> _gameRepositoryMock;
+        private readonly Mock<IGameSearchRepository> _gameSearchRepositoryMock;
         private readonly AddOrUpdateGameCommandHandler _handler;
         private readonly Faker _faker;
         private readonly string _description;
@@ -26,7 +28,16 @@ namespace FCG.Catalog.Tests.Application.Games.UseCases.Commmands.AddGame
         public AddOrUpdateGameCommandHandlerTests()
         {
             _gameRepositoryMock = new Mock<IGameCommandRepository>();
-            _handler = new AddOrUpdateGameCommandHandler(_gameRepositoryMock.Object);
+            _gameSearchRepositoryMock = new Mock<IGameSearchRepository>();
+
+            _gameSearchRepositoryMock
+                .Setup(r => r.IndexAsync(It.IsAny<GameIndexDto>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            _handler = new AddOrUpdateGameCommandHandler(
+                _gameRepositoryMock.Object,
+                _gameSearchRepositoryMock.Object);
+
             _faker = new Faker("pt_BR");
             _name = _faker.Name.FullName();
             _description = _faker.Commerce.ProductName();
@@ -34,7 +45,6 @@ namespace FCG.Catalog.Tests.Application.Games.UseCases.Commmands.AddGame
             _priceValue = _faker.Random.Decimal(50, 300);
             _createdBy = _faker.Random.Int(1, 10);
             _baseDate = DateTime.UtcNow;
-
         }
 
         /*
@@ -59,7 +69,11 @@ namespace FCG.Catalog.Tests.Application.Games.UseCases.Commmands.AddGame
             );
 
             _gameRepositoryMock
-                .Setup(r => r.GameExistsAsync(It.IsAny<Guid?>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Setup(r => r.GameExistsAsync(
+                    It.IsAny<Guid?>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync(false);
 
             // Act
@@ -69,7 +83,6 @@ namespace FCG.Catalog.Tests.Application.Games.UseCases.Commmands.AddGame
             result.Should().NotBeNull();
             result.IsSuccess.Should().BeTrue();
             result.Data.Should().BeOfType<GameOutput>();
-
             _gameRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Game>(), It.IsAny<CancellationToken>()), Times.Once);
             _gameRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Game>(), It.IsAny<CancellationToken>()), Times.Never);
         }
@@ -85,6 +98,7 @@ namespace FCG.Catalog.Tests.Application.Games.UseCases.Commmands.AddGame
         {
             // Arrange
             var existingGameId = Guid.NewGuid();
+
             var existingGameCommand = new AddOrUpdateGameCommand(
                 Name: _name,
                 Description: _description,
@@ -106,21 +120,18 @@ namespace FCG.Catalog.Tests.Application.Games.UseCases.Commmands.AddGame
                 ageRating: new AgeRating("Livre", 0)
             );
 
-            //// Setup do GameExistsAsync para retornar false, indicando que não há outro jogo duplicado
             _gameRepositoryMock
                 .Setup(r => r.GameExistsAsync(
                     existingGameCommand.PublicId,
                     existingGameCommand.Description,
                     existingGameCommand.Developer,
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(false); // falso porque o update é permitido se não existir duplicado
+                .ReturnsAsync(false);
 
-            // Setup do GetByIdAsync para retornar a entidade existente
             _gameRepositoryMock
                 .Setup(r => r.GetByIdAsync(existingGameId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(existingGameEntity);
 
-            // Setup do UpdateAsync
             _gameRepositoryMock
                 .Setup(r => r.UpdateAsync(It.IsAny<Game>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((Game g, CancellationToken _) => g);
@@ -132,7 +143,6 @@ namespace FCG.Catalog.Tests.Application.Games.UseCases.Commmands.AddGame
             result.Should().NotBeNull();
             result.IsSuccess.Should().BeTrue();
             result.Data.Should().BeOfType<GameOutput>();
-
             _gameRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Game>(), It.IsAny<CancellationToken>()), Times.Once);
             _gameRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Game>(), It.IsAny<CancellationToken>()), Times.Never);
         }
