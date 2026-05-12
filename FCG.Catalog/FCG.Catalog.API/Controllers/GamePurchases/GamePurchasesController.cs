@@ -1,4 +1,6 @@
 using FCG.Catalog.API.Common.Outputs;
+using FCG.Catalog.Application.Common.Contracts;
+using FCG.Catalog.Application.GamePurchases.Ports;
 using FCG.Catalog.Application.GamePurchases.UseCases.Commands.AddGamePurchase;
 using FCG.Catalog.Application.GamePurchases.UseCases.Queries;
 using Microsoft.AspNetCore.Authorization;
@@ -32,6 +34,16 @@ public class GamePurchaseController : ControllerBase
     {
         var result = await handle.Handle(input, cancellationToken);
         return result.ToAcceptedActionResult($"/api/gamepurchases");
+    }
+
+    [Authorize(Roles = nameof(EUserRoleContract.Admin))]
+    [HttpPost("top-sellers/refresh")]
+    public async Task<IActionResult> RefreshTopSellers(
+        [FromServices] ITopSellingGamesCacheService topSellingGamesCacheService,
+        CancellationToken cancellationToken)
+    {
+        var result = await topSellingGamesCacheService.RefreshTopSellingGamesAsync(cancellationToken);
+        return Ok(result);
     }
 
 }

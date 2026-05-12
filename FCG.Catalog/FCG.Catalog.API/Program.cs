@@ -1,4 +1,6 @@
+using System.Text;
 using FCG.Catalog.API.Common;
+using FCG.Catalog.API.Jobs;
 using FCG.Catalog.Application.GamePurchases.Ports;
 using FCG.Catalog.Application.GamePurchases.UseCases.Commands.AddGamePurchase;
 using FCG.Catalog.Application.GamePurchases.UseCases.Queries;
@@ -19,6 +21,7 @@ using FCG.Catalog.Infraestructure.Adapters.Promotions.Services;
 using FCG.Catalog.Infraestructure.Persistence;
 using FCG.Catalog.Infraestructure.Persistence.Interceptors;
 using FCG.Catalog.Infrastructure.Adapters.Games.Repositories;
+using FCG.Catalog.Infrastructure.Cache;
 using FCG.Catalog.Infrastructure.Configuration;
 using FCG.Catalog.Infrastructure.Elastic;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -34,7 +37,7 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using System.Text;
+using Quartz;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,11 +49,13 @@ builder.Logging.AddOpenTelemetry(logging =>
     logging.IncludeScopes = true;
     logging.ParseStateValues = true;
 });
+
 var awsLoggerConfig = new AWS.Logger.AWSLoggerConfig
 {
     Region = builder.Configuration["AWS:Region"] ?? "us-east-1",
     LogGroup = builder.Configuration["AWS.Logging:LogGroup"] ?? "/fcg/catalog/api"
 };
+
 builder.Logging.AddAWSProvider(awsLoggerConfig);
 
 const string serviceName = "FCG.Catalog";
@@ -71,8 +76,7 @@ builder.Services
         .AddEntityFrameworkCoreInstrumentation()
         .SetSampler(new AlwaysOnSampler())
         .AddXRayTraceId()
-        .AddConsoleExporter()
-    )
+        .AddConsoleExporter())
     .WithMetrics(metrics => metrics
         .SetResourceBuilder(
             ResourceBuilder.CreateDefault()
@@ -85,8 +89,7 @@ builder.Services
         {
             opts.Endpoint = new Uri(collectorEndpoint);
             opts.Protocol = OtlpExportProtocol.Grpc;
-        })
-    )
+        }))
     .WithLogging(logging => logging
         .SetResourceBuilder(
             ResourceBuilder.CreateDefault()
@@ -96,8 +99,7 @@ builder.Services
         {
             opts.Endpoint = new Uri(collectorEndpoint);
             opts.Protocol = OtlpExportProtocol.Grpc;
-        })
-    );
+        }));
 
 builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
 {
@@ -109,9 +111,32 @@ builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
 }, ServiceLifetime.Scoped);
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.Configure<RedisCacheSettings>(builder.Configuration.GetSection(RedisCacheSettings.SectionName));
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration[$"{RedisCacheSettings.SectionName}:ConnectionString"]
+        ?? throw new InvalidOperationException("Redis:ConnectionString nÃ£o configurado.");
+    options.InstanceName = builder.Configuration[$"{RedisCacheSettings.SectionName}:InstanceName"]
+        ?? throw new InvalidOperationException("Redis:InstanceName nÃ£o configurado.");
+});
+
+var topSellingGamesCron = builder.Configuration["Quartz:TopSellingGamesCron"] ?? "0 30 * ? * *";
+
+builder.Services.AddQuartz(quartz =>
+{
+    var jobKey = new JobKey(nameof(RefreshTopSellingGamesJob));
+
+    quartz.AddJob<RefreshTopSellingGamesJob>(options => options.WithIdentity(jobKey));
+    quartz.AddTrigger(options => options
+        .ForJob(jobKey)
+        .WithIdentity($"{nameof(RefreshTopSellingGamesJob)}-trigger")
+        .WithCronSchedule(topSellingGamesCron));
+});
+
+builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
 builder.Services.AddHealthChecks()
-    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("API está funcionando"));
+    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("API estÃ¡ funcionando"));
 
 builder.Services.AddScoped<IUserContext, UserContext>();
 builder.Services.AddScoped<IAddOrUpdatePromotionCommandHandler, AddOrUpdatePromotionCommandHandler>();
@@ -124,12 +149,14 @@ builder.Services.AddScoped<IGetPromotionsPagedQueryHandler, GetPromotionsPagedQu
 builder.Services.AddScoped<IAddOrUpdateGameCommandHandler, AddOrUpdateGameCommandHandler>();
 builder.Services.AddScoped<IGameCommandRepository, GameCommandRepository>();
 builder.Services.AddScoped<IGameQueryRepository, GameQueryRepository>();
+builder.Services.AddScoped<IGameCacheService, DistributedGameCacheService>();
 builder.Services.AddScoped<IGetGameByIdQueryHandler, GetGameByIdQueryHandler>();
 builder.Services.AddScoped<IGetGamesPagedQueryHandler, GetGamesPagedQueryHandler>();
 
 builder.Services.AddScoped<IAddGamePurchasesCommandHandler, AddGamePurchasesCommandHandler>();
 builder.Services.AddScoped<IGamePurchaseCommandRepository, GamePurchasesCommandRepository>();
 builder.Services.AddScoped<IGamePurchaseQueryRepository, GamePurchaseQueryRepository>();
+builder.Services.AddScoped<ITopSellingGamesCacheService, TopSellingGamesCacheService>();
 builder.Services.AddScoped<IGetByUserGamePurchasesQueryHandler, GetByUserGamePurchasesQueryHandler>();
 
 builder.Services.AddMessaging(builder.Configuration);
@@ -156,22 +183,21 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-  new OpenApiSecurityScheme
-     {
-    Reference = new OpenApiReference
-  {
-      Type = ReferenceType.SecurityScheme,
-        Id = "Bearer"
-      }
-  },
-   new string[] {}
-      }
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
     });
 });
 
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"]
-    ?? throw new InvalidOperationException("JWT SecretKey não configurada (verifique appsettings / User Secrets)");
-
+    ?? throw new InvalidOperationException("JWT SecretKey nÃ£o configurada (verifique appsettings / User Secrets)");
 
 var key = Encoding.ASCII.GetBytes(jwtSecretKey);
 
@@ -201,8 +227,7 @@ builder.Services.AddSingleton<IElasticClient>(_ =>
     var settings = new ConnectionSettings(new Uri(uri))
         .DefaultMappingFor<GameDocument>(m => m
             .IndexName("fcg-games")
-            .IdProperty(d => d.Id)
-        );
+            .IdProperty(d => d.Id));
 
     return new ElasticClient(settings);
 });
@@ -212,24 +237,26 @@ builder.Services.AddScoped<IGameSearchRepository, GameSearchRepository>();
 var app = builder.Build();
 
 Sdk.SetDefaultTextMapPropagator(
-    new CompositeTextMapPropagator(new TextMapPropagator[]
-    {
-        new AWSXRayPropagator(),
-        new TraceContextPropagator(),
-        new BaggagePropagator()
-    }));
+    new CompositeTextMapPropagator(
+        new TextMapPropagator[]
+        {
+            new AWSXRayPropagator(),
+            new TraceContextPropagator(),
+            new BaggagePropagator()
+        }));
 
 app.UseSwagger();
 app.UseSwaggerUI();
 
 if (app.Environment.IsDevelopment())
+{
     app.UseHttpsRedirection();
+}
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");
-
 app.MapControllers();
 
 using (var scope = app.Services.CreateScope())

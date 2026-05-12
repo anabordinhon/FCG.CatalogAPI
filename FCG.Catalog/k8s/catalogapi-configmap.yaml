@@ -9,3 +9,7 @@ data:
   AWS_EC2_METADATA_DISABLED: "true"
   AWS_REGION: "us-east-1"
   AWS_DEFAULT_REGION: "us-east-1"
+  Redis__InstanceName: "fcg:catalog:"
+  Redis__GameCacheTtlMinutes: "60"
+  Redis__TopSellingCacheTtlMinutes: "120"
+  Quartz__TopSellingGamesCron: "0 30 * ? * *"
