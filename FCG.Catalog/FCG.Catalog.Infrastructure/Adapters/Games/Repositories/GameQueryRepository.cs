@@ -15,11 +15,11 @@ public class GameQueryRepository : IGameQueryRepository
         _dbContext = dbContext;
     }
 
-    public async Task<Game> GetByIdAsync(Guid publicId, CancellationToken cancellationToken)
+    public async Task<Game?> GetByIdAsync(Guid publicId, CancellationToken cancellationToken)
     {
         return await _dbContext.Games
               .AsNoTracking()
-              .FirstAsync(u => u.PublicId == publicId, cancellationToken);
+              .FirstOrDefaultAsync(u => u.PublicId == publicId, cancellationToken);
     }
 
     public async Task<PagedResult<Game>> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken)
@@ -36,12 +36,12 @@ public class GameQueryRepository : IGameQueryRepository
             TotalCount = totalCount
         };
     }
-    public async Task<Game> GetByIdWithPromotionsAsync(Guid publicId, CancellationToken cancellationToken)
+    public async Task<Game?> GetByIdWithPromotionsAsync(Guid publicId, CancellationToken cancellationToken)
     {
         return await _dbContext.Games
             .AsNoTracking()
             .Include(g => g.Promotions)
-            .FirstAsync(g => g.PublicId == publicId, cancellationToken);
+            .FirstOrDefaultAsync(g => g.PublicId == publicId, cancellationToken);
     }
 
 }
