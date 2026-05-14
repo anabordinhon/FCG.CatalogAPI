@@ -115,9 +115,9 @@ builder.Services.Configure<RedisCacheSettings>(builder.Configuration.GetSection(
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration[$"{RedisCacheSettings.SectionName}:ConnectionString"]
-        ?? throw new InvalidOperationException("Redis:ConnectionString nÃ£o configurado.");
+        ?? throw new InvalidOperationException("Redis:ConnectionString nao configurado.");
     options.InstanceName = builder.Configuration[$"{RedisCacheSettings.SectionName}:InstanceName"]
-        ?? throw new InvalidOperationException("Redis:InstanceName nÃ£o configurado.");
+        ?? throw new InvalidOperationException("Redis:InstanceName nao configurado.");
 });
 
 var topSellingGamesCron = builder.Configuration["Quartz:TopSellingGamesCron"] ?? "0 30 * ? * *";
@@ -136,7 +136,7 @@ builder.Services.AddQuartz(quartz =>
 builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
 builder.Services.AddHealthChecks()
-    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("API estÃ¡ funcionando"));
+    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("API esta funcionando"));
 
 builder.Services.AddScoped<IUserContext, UserContext>();
 builder.Services.AddScoped<IAddOrUpdatePromotionCommandHandler, AddOrUpdatePromotionCommandHandler>();
@@ -197,7 +197,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"]
-    ?? throw new InvalidOperationException("JWT SecretKey nÃ£o configurada (verifique appsettings / User Secrets)");
+    ?? throw new InvalidOperationException("JWT SecretKey nao configurada (verifique appsettings / User Secrets)");
 
 var key = Encoding.ASCII.GetBytes(jwtSecretKey);
 
