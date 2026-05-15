@@ -1,90 +1,287 @@
 # FCG.Catalog.API
 
-Descrição
-- Microserviço da API do catálogo (jogos, compras, eventos).
-- Projeto .NET 8.
+## Descricao
 
-Visão geral
-- Expõe endpoints HTTP na porta `8080`.
-- Usa SQL Server (connection string), JWT para autenticação e RabbitMQ para eventos.
-- Dockerfile com estágios: `build`, `runtime` e `migrations` (estágio `migrations` executa `dotnet ef database update`).
-- Manifests Kubernetes em `k8s/` (ConfigMap, Secret template, Deployment com initContainer para migrations e Service).
+Microservico responsavel pelo catalogo de jogos da plataforma, incluindo cadastro e consulta de jogos, promocoes, compras e busca textual.
 
-Pré-requisitos
-- .NET 8 SDK (desenvolvimento)
+A aplicacao roda em .NET 8 e hoje integra os seguintes componentes de infraestrutura:
+
+- SQL Server para persistencia transacional.
+- Redis para cache distribuido.
+- Elasticsearch para indexacao e busca de jogos.
+- RabbitMQ com MassTransit para mensageria e consumo de eventos.
+- Quartz para rotinas agendadas.
+- OpenTelemetry e AWS CloudWatch para observabilidade.
+
+## Visao geral tecnica
+
+- API HTTP exposta na porta `8080`.
+- Swagger habilitado na aplicacao.
+- Health check em `/health`.
+- Autenticacao via JWT Bearer.
+- Indexacao automatica no Elasticsearch durante a inicializacao.
+- Cache distribuido para detalhes de jogo e ranking de mais vendidos.
+- Job agendado para refresh do cache de top sellers.
+- Manifests Kubernetes em `FCG.Catalog/k8s/`.
+
+## Estrutura relevante
+
+- `FCG.Catalog/FCG.Catalog.API`: camada de entrada, configuracao e controllers.
+- `FCG.Catalog/FCG.Catalog.Application`: casos de uso e contratos.
+- `FCG.Catalog/FCG.Catalog.Domain`: entidades e regras de dominio.
+- `FCG.Catalog/FCG.Catalog.Infrastructure`: persistencia, cache, Elastic e mensageria.
+- `FCG.Catalog/k8s`: manifests para deploy no Kubernetes.
+
+## Dependencias de infraestrutura
+
+### SQL Server
+
+A conexao principal da aplicacao usa `ConnectionStrings__DefaultConnection`.
+
+Responsabilidades:
+
+- Persistencia de jogos, promocoes e compras.
+- Execucao de migrations via EF Core.
+- Tabelas temporais nas entidades que ja possuem esse suporte nas migrations atuais.
+
+Exemplo de connection string:
+
+```text
+Server=sqlserver-service,1433;Database=FCGCatalog;User Id=sa;Password=<SENHA>;TrustServerCertificate=True;Encrypt=False;
+```
+
+### Redis
+
+O Redis e usado como cache distribuido pela API.
+
+Configuracoes suportadas:
+
+- `Redis__ConnectionString`
+- `Redis__InstanceName`
+- `Redis__GameCacheTtlMinutes`
+- `Redis__TopSellingCacheTtlMinutes`
+
+Comportamento atual:
+
+- Prefixo padrao de chave: `fcg:catalog:`.
+- TTL padrao do cache de jogo: `60` minutos.
+- TTL padrao do cache de top sellers: `120` minutos.
+
+### Elasticsearch
+
+O Elasticsearch e usado para busca textual de jogos.
+
+Configuracao suportada:
+
+- `Elasticsearch__Uri`
+
+Comportamento atual:
+
+- URI padrao no codigo: `http://fcg-elasticsearch:9200` quando a configuracao nao e informada.
+- Indice utilizado: `fcg-games`.
+- O indice e criado automaticamente no startup, se nao existir.
+- O analisador configurado aplica `lowercase` e `asciifolding`, o que melhora buscas sem sensibilidade a maiusculas e acentos.
+
+### RabbitMQ e MassTransit
+
+A mensageria da aplicacao usa RabbitMQ com MassTransit.
+
+Configuracoes suportadas:
+
+- `RabbitMQ__Host`
+- `RabbitMQ__Username`
+- `RabbitMQ__Password`
+
+Comportamento atual:
+
+- Consome o evento `PaymentProcessedEvent`.
+- Publica e consome mensagens com nomes de entidade como `payment-processed` e `order-placed`.
+- Fila de consumo configurada: `payment-processed-catalog-queue`.
+- Se usuario e senha nao forem informados, o codigo usa `guest` e `guest`.
+
+### Quartz
+
+Quartz e usado para processamento agendado.
+
+Configuracao suportada:
+
+- `Quartz__TopSellingGamesCron`
+
+Comportamento atual:
+
+- Valor padrao: `0 30 * ? * *`.
+- Job configurado: `RefreshTopSellingGamesJob`.
+- Objetivo: atualizar o cache de jogos mais vendidos.
+
+### Observabilidade
+
+A aplicacao possui telemetria e logging com OpenTelemetry e integracao com AWS.
+
+Configuracoes suportadas:
+
+- `OpenTelemetry__CollectorEndpoint`
+- `AWS__Region`
+- `AWS__Logging__LogGroup`
+
+Comportamento atual:
+
+- Exportacao OTLP via gRPC.
+- Endpoint padrao do collector: `http://host.docker.internal:4317`.
+- Log group padrao: `/fcg/catalog/api`.
+- Regiao AWS padrao: `us-east-1`.
+
+## Variaveis de ambiente
+
+### Obrigatorias para subir a aplicacao com seguranca
+
+- `ConnectionStrings__DefaultConnection`
+- `Jwt__SecretKey`
+- `Redis__ConnectionString`
+- `Redis__InstanceName`
+
+### Recomendadas conforme o ambiente
+
+- `Elasticsearch__Uri`
+- `RabbitMQ__Host`
+- `RabbitMQ__Username`
+- `RabbitMQ__Password`
+- `Quartz__TopSellingGamesCron`
+- `OpenTelemetry__CollectorEndpoint`
+- `AWS__Region`
+- `AWS__Logging__LogGroup`
+- `ASPNETCORE_ENVIRONMENT`
+- `ASPNETCORE_URLS`
+
+## Desenvolvimento local
+
+### Pre-requisitos
+
+- .NET 8 SDK
 - Docker
-- docker-compose (opcional)
-- kubectl (para deploy em cluster)
-- Acesso a um registry de containers (se for rodar no cluster)
+- Um SQL Server acessivel pela API
+- Um Redis acessivel pela API
+- Um Elasticsearch acessivel pela API
+- Um RabbitMQ acessivel pela API
 
-Variáveis de ambiente (usadas pela aplicação)
-- `ConnectionStrings__DefaultConnection` — connection string do SQL Server.  
-  Ex.: `Server=sqlserver-service,1433;Database=FCGCatalog;User Id=sa;Password=...;TrustServerCertificate=True;Encrypt=False;`
-- `Jwt__SecretKey` — chave secreta para JWT.
-- `RabbitMQ__Host` — host/service do RabbitMQ (ex.: `rabbitmq-service`).
-- `RabbitMQ__Username` e `RabbitMQ__Password` — credenciais do RabbitMQ.
-- `ASPNETCORE_ENVIRONMENT` — `Development` | `Production`.
-- `ASPNETCORE_URLS` — ex.: `http://+:8080`.
+### appsettings
 
-Observação: não versionar segredos. Use `Secret` no Kubernetes ou um provider de secrets.
+O arquivo `FCG.Catalog/FCG.Catalog.API/appsettings.json` ja contem parte da estrutura de configuracao esperada, incluindo Redis, Quartz, RabbitMQ, AWS e OpenTelemetry.
 
-Build e execução com Docker
-1. Build da imagem do runtime:
-   docker build --target runtime -t catalogapi:latest -f FCG.Catalog.API/Dockerfile .
-2. (Opcional) Build da imagem de migrations:
-   docker build --target migrations -t catalogapi-migrations:latest -f FCG.Catalog.API/Dockerfile .
-3. Executar container (exemplo):
-   docker run --rm -e ConnectionStrings__DefaultConnection="SUA_CONN" \
-     -e Jwt__SecretKey="SUA_CHAVE" \
-     -e RabbitMQ__Host="rabbitmq-service" \
-     -p 8080:8080 \
-     catalogapi:latest
+Segredos e endpoints reais nao devem ser versionados. Para desenvolvimento local, prefira user secrets ou variaveis de ambiente.
 
-Executar migrations (local / container)
-- Usando a imagem de migrations:
-  docker run --rm \
-    -e ConnectionStrings__DefaultConnection="SUA_CONN" \
-    -e Jwt__SecretKey="SUA_CHAVE" \
-    -e RabbitMQ__Host="rabbitmq-service" \
-    catalogapi-migrations:latest
-- Ou rodar localmente com `dotnet ef database update` no projeto `FCG.Catalog.Infrastructure` apontando o `--startup-project` para `FCG.Catalog.API`.
+### Executando localmente
 
-Exemplo mínimo (trecho) para `docker-compose.yml`
-- Configure variáveis em `.env` ou diretamente:
-  services:
-    catalogapi:
-      image: catalogapi:latest
-      ports:
-        - "8080:8080"
-      environment:
-        - ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection}
-        - Jwt__SecretKey=${Jwt__SecretKey}
-        - RabbitMQ__Host=${RabbitMQ__Host}
+Exemplo de variaveis minimas em PowerShell:
 
-Deploy no Kubernetes (manifests em `k8s/`)
-1. Atualize as imagens em `k8s/deployment.yaml` para apontar para seu registry (se necessário).
-2. Aplicar ConfigMap / Secret / Deployment / Service:
-   kubectl apply -f k8s/configmap.yaml
-   kubectl apply -f k8s/secret.yaml          # ou criar Secret via CLI (recomendado)
-   kubectl apply -f k8s/deployment.yaml
-   kubectl apply -f k8s/service.yaml
-3. Exemplo para criar secret via CLI:
-   kubectl create secret generic catalogapi-secret \
-     --from-literal=ConnectionStrings__DefaultConnection="SUA_CONN" \
-     --from-literal=Jwt__SecretKey="SUA_CHAVE" \
-     --from-literal=RabbitMQ__Host="rabbitmq-service" \
-     --from-literal=username="RABBIT_USER" \
-     --from-literal=password="RABBIT_PASS"
+```powershell
+$env:ConnectionStrings__DefaultConnection = "Server=localhost,1433;Database=FCGCatalog;User Id=sa;Password=<SENHA>;TrustServerCertificate=True;Encrypt=False;"
+$env:Jwt__SecretKey = "<JWT_SECRET>"
+$env:Redis__ConnectionString = "localhost:6379,abortConnect=false"
+$env:Redis__InstanceName = "fcg:catalog:"
+$env:Elasticsearch__Uri = "http://localhost:9200"
+$env:RabbitMQ__Host = "localhost"
+$env:RabbitMQ__Username = "guest"
+$env:RabbitMQ__Password = "guest"
+```
 
-Notas importantes
-- `k8s/secret-template.yaml` é um template — substitua valores sensíveis antes de aplicar.
-- O `Deployment` inclui um `initContainer` que executa as migrations — garanta que a imagem de migrations esteja disponível para o cluster.
-- Não versionar segredos no repositório. Use um provider de secrets (Azure Key Vault, HashiCorp Vault, etc.) em produção.
-- Portas: container escuta `8080`; o `Service` mapeia `80 -> 8080`.
+Depois disso, execute a API a partir de `FCG.Catalog/FCG.Catalog.API`.
 
-Scripts e orquestrador
-- Caso exista uma pasta/orquestrador com `deploy.ps1`, este script automatiza build/push/apply para Kubernetes — revise parâmetros antes de executar.
-- Cada microserviço deve possuir seu próprio `README.md` com as variáveis e instruções específicas.
+## Build com Docker
 
-Ajuda adicional
-- Posso gerar um `docker-compose.yml` completo para o ambiente local ou revisar/adaptar um `deploy.ps1` para seu fluxo CI/CD.
+A partir da raiz do repositorio:
+
+### Imagem da aplicacao
+
+```powershell
+docker build --target runtime -t catalogapi:latest -f FCG.Catalog/FCG.Catalog.API/Dockerfile FCG.Catalog
+```
+
+### Imagem de migrations
+
+```powershell
+docker build --target migrations -t catalogapi:migrations -f FCG.Catalog/FCG.Catalog.API/Dockerfile FCG.Catalog
+```
+
+### Executando o container da API
+
+```powershell
+docker run --rm -p 8080:8080 `
+  -e ConnectionStrings__DefaultConnection="Server=host.docker.internal,1433;Database=FCGCatalog;User Id=sa;Password=<SENHA>;TrustServerCertificate=True;Encrypt=False;" `
+  -e Jwt__SecretKey="<JWT_SECRET>" `
+  -e Redis__ConnectionString="host.docker.internal:6379,abortConnect=false" `
+  -e Redis__InstanceName="fcg:catalog:" `
+  -e Elasticsearch__Uri="http://host.docker.internal:9200" `
+  -e RabbitMQ__Host="host.docker.internal" `
+  -e RabbitMQ__Username="guest" `
+  -e RabbitMQ__Password="guest" `
+  catalogapi:latest
+```
+
+### Executando migrations em container
+
+```powershell
+docker run --rm `
+  -e ConnectionStrings__DefaultConnection="Server=host.docker.internal,1433;Database=FCGCatalog;User Id=sa;Password=<SENHA>;TrustServerCertificate=True;Encrypt=False;" `
+  -e Jwt__SecretKey="<JWT_SECRET>" `
+  -e Redis__ConnectionString="host.docker.internal:6379,abortConnect=false" `
+  -e Redis__InstanceName="fcg:catalog:" `
+  catalogapi:migrations
+```
+
+## Kubernetes
+
+Os manifests do servico estao em `FCG.Catalog/k8s/`:
+
+- `catalogapi-namespace.yaml`
+- `catalogapi-configmap.yaml`
+- `secret-template.yaml`
+- `catalogapi-deployment.yaml`
+- `catalogapi-service.yaml`
+- `catalogapi-migration-job.yaml`
+
+### ConfigMap atual
+
+O ConfigMap versionado hoje define:
+
+- `ASPNETCORE_ENVIRONMENT=Production`
+- `ASPNETCORE_URLS=http://+:8080`
+- `AWS_EC2_METADATA_DISABLED=true`
+- `AWS_REGION=us-east-1`
+- `AWS_DEFAULT_REGION=us-east-1`
+- `Redis__InstanceName=fcg:catalog:`
+- `Redis__GameCacheTtlMinutes=60`
+- `Redis__TopSellingCacheTtlMinutes=120`
+- `Quartz__TopSellingGamesCron=0 30 * ? * *`
+
+### Secret template atual
+
+O template versionado hoje contempla:
+
+- `ConnectionStrings__DefaultConnection`
+- `Redis__ConnectionString`
+- `Jwt__SecretKey`
+
+Se o ambiente Kubernetes tambem depender de RabbitMQ, Elasticsearch ou OTLP com valores diferentes dos defaults do codigo, inclua essas chaves em `Secret` ou `ConfigMap` conforme a sensibilidade do dado.
+
+### Aplicando os manifests
+
+```powershell
+kubectl apply -f FCG.Catalog/k8s/catalogapi-namespace.yaml
+kubectl apply -f FCG.Catalog/k8s/catalogapi-configmap.yaml
+kubectl apply -f FCG.Catalog/k8s/secret-template.yaml
+kubectl apply -f FCG.Catalog/k8s/catalogapi-deployment.yaml
+kubectl apply -f FCG.Catalog/k8s/catalogapi-service.yaml
+```
+
+### Rodando migrations no cluster
+
+```powershell
+kubectl apply -f FCG.Catalog/k8s/catalogapi-migration-job.yaml
+```
+
+## Boas praticas
+
+- Nao versione segredos reais no repositorio.
+- Prefira `Secret`, cofre de segredos ou variaveis injetadas pela esteira.
+- Ao mudar nomes de chaves de configuracao, atualize README, manifests e `appsettings` juntos.
+- Ao adicionar nova dependencia de infraestrutura, documente a chave de configuracao e o valor padrao, quando existir.
