@@ -223,7 +223,7 @@ jobs:
           kubectl create secret generic catalogapi-secret \
             --namespace=${{ env.NAMESPACE }} \
             --from-literal=ConnectionStrings__DefaultConnection="${{ secrets.CATALOG_DB_CONNECTION_STRING }}" \
-            --from-literal=Redis__ConnectionString="fcg-redis.fcg.svc.cluster.local:6379,password=${{ secrets.REDIS_PASSWORD }},abortConnect=false" \
+            --from-literal=Redis__ConnectionString="${{ secrets.REDIS_CONNECTION_STRING }}" \
             --from-literal=Jwt__SecretKey="${{ secrets.JWT_SECRET_KEY }}" \
             --from-literal=DefaultAdmin__Password="${{ secrets.DEFAULT_ADMIN_PASSWORD }}" \
             --from-literal=RabbitMQ__Host="fcg-rabbitmq" \

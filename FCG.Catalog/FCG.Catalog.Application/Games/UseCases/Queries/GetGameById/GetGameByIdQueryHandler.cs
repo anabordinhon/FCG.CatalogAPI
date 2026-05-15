@@ -32,7 +32,7 @@ public class GetGameByIdQueryHandler : IGetGameByIdQueryHandler
 
         if (game is null)
         {
-            return ResultData<GameOutput>.Error("Jogo nÃ£o encontrado.");
+            return ResultData<GameOutput>.Error("Jogo não encontrado.");
         }
 
         var gameOutput = game.ToOutput();
