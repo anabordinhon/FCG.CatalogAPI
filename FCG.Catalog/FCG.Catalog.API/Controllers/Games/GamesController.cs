@@ -37,6 +37,7 @@ public class GamesController : ControllerBase
     [FromQuery] int page = 1,
     [FromQuery] int pageSize = 10)
     {
+        throw new Exception("Simulação de bug");
         if (string.IsNullOrWhiteSpace(q))
             return BadRequest("O parâmetro 'q' é obrigatório.");
 
